@@ -1,0 +1,90 @@
+#!/usr/bin/env edidtclsh
+
+package require odfi::tool 1.0.0
+package require odfi::implementation::edid::netlist 1.0.0
+
+odfi::tool::describe {
+
+
+    description "
+        This utility reads a F file netlist, and gathers all defined sources, incdirs, defines transfitively accros all referenced f files
+        It then prints out the results, and gives the user some informations / warnings
+    "
+
+    argument f    required type file description "
+
+        Path to the F file to be parsed
+
+    "
+
+    argument sort optional description "
+        If Provided, the sources list output will be sorted by name
+    "
+
+}
+
+## parse Arguments
+tool parseArguments
+
+
+## Parse
+################
+puts "Parsing F File: $f"
+set content [edid::netlist::parseFNetlist $f]
+
+## Results
+################
+
+puts "--------- F Files ----------------"
+puts "----------------------------------"
+puts ""
+
+foreach fFile [odfi::list::arrayGet $content fFiles] {
+
+    puts "$fFile"
+
+}
+
+puts ""
+puts "--------- Defines ----------------"
+puts "----------------------------------"
+puts ""
+
+foreach define [odfi::list::arrayGet $content defines] {
+
+    puts "$define"
+
+}
+
+
+puts ""
+puts "--------- Include Directories ----"
+puts "----------------------------------"
+puts ""
+
+
+foreach incdir [odfi::list::arrayGet $content incdirs] {
+
+    puts "$incdir"
+
+}
+
+
+puts ""
+puts "--------- Sources ----------------"
+puts "----------------------------------"
+puts ""
+
+set sourceFiles [odfi::list::arrayGet $content sources]
+if {$sort} {
+    odfi::common::logInfo "Following Source Files are sorted by name"
+    puts ""
+
+    set sourceFiles [lsort $sourceFiles]
+
+}
+foreach sourceFile [odfi::list::arrayGet $content sources] {
+
+    puts "$sourceFile"
+
+}

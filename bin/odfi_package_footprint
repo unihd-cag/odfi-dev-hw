@@ -1,0 +1,141 @@
+#!/usr/bin/env tclsh8.5
+
+
+package require odfi::tool
+package require odfi::implementation::edid::package
+
+odfi::tool::describe {
+
+
+    description "
+
+This Tools takes an input file with a list of PIN names and Package Position, and can produce SVG picture, along with an HTML viewer.
+An embedded web viewer can be started to view in a browser easily
+
+- Input File FORMAT:
+    
+    - Pins List Format (files without extension, *.txt and standard input):
+
+        Each Line of the input file defines one PIN POSITION pair, like this:
+
+        ...
+        CLK A1
+        GPIO0 B2
+        ...
+
+        The Order of the definitions is irrelevant, the tool sorts everything correctly
+
+    - CSV file Format (files with *.csv extension):
+
+        First Line: Columns separated by ',' , ex: ,1,2,3,4
+        Next Lines: Line name , values of pins ... , ex: A , VDD, VSS, ...       
+
+- Input definition source
+
+    The tool reads the standard input for the input file until EOF is found
+    The input is then parsed using ODFI embedded TCL parser, so the input can contain some TCL code
+
+- Usage example:
+
+    - Using an input file:
+
+        odfi_package_footprint < /path/to/input_definition/file
+
+    - By Piping
+
+        wonderful_pin_list_output_tool | odfi_package_footprint
+
+    - By Hand typing
+
+        odfi_package_footprint
+
+        Then enter the input (copy paste will work)
+        Press CTRL + D to produce the End of File character
+
+
+    "
+
+    argument file optional type file description "If defined, the source file to read pins definitions"
+
+    argument web  optional description "
+
+        If defined, starts an embedded web server and tries to open browser
+
+    "
+
+}
+tool parseArguments
+
+###########################################
+## Try to Read Foot Print Definition File Provided
+##########################################
+if {$file!=false} {
+
+    ## Read File Through embedded TCL
+    ##########
+    set fileContent [odif::closures::embeddedTclFromFileToString $file]
+
+    switch -glob -- [file extension $file] {
+
+        
+        ## CSV File 
+        ##################
+        *.csv {
+
+            edid::package::FootPrint footprint
+            footprint readCSV $fileContent
+
+
+        }
+
+        ## Simple List file
+        #######################
+        default {
+            
+            edid::package::FootPrint footprint
+            footprint readInputList $fileContent
+
+        }
+
+    }
+
+
+} else {
+
+    ## No File Provided Read Standard Input
+    ################################
+    odfi::common::logInfo "Reading Standard Input for definition"
+    odfi::common::logInfo "If typing in the list yourself, don't forget to press CTRL+D to send the end of file character when your done"
+
+    ## Forward user input to an internal stream for flexibility
+    set inputStream [odfi::common::newStringChannel]
+    while {[gets stdin line]>= 0} {
+
+        puts $inputStream $line
+
+    }
+
+    ## Exit if empty
+    if {[tell $inputStream]==0} {
+        odfi::common::logInfo "Empty Input -> Exiting"
+        exit 1
+    }
+
+    ## Parse result using TCL parser
+    ##################
+    set inputStream [odfi::closures::embeddedTclStream $inputStream]
+
+    ## Create FootPrint Object and fill it with input datas
+    ####################
+    edid::package::FootPrint footprint
+    footprint readInputList [read $inputStream]
+
+}
+
+## Exit if no Footprint definition was found
+
+###########################
+## Try to produce output 
+###########################
+
+
