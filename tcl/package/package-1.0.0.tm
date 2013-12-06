@@ -220,16 +220,25 @@ namespace eval odfi::dev::hw::package {
 
 
 
+
     ########################
     ## Viewer Outputs
     ##########################
     itcl::class BaseOutputGenerator {
 
+	public variable name ""
+
         ## The Footprint for which we are generating
         public variable footPrint 
 
+	## The available views
+	public variable availableViews "topview bottomview"
+
         ## This maps holds generic string based named parameters to configure the output
-        variable parametersMap
+        public variable parametersMap
+
+	## The subclasses of this class. They represent the available Producers
+	#public variable subclasses
 
         constructor cFootprint {
 
@@ -242,11 +251,41 @@ namespace eval odfi::dev::hw::package {
             array set parametersMap {
             }
 
+	    #TODO Get possible producer
+	    #set subclasses [itcl::find classes "::odfi::dev::hw::package::SVGOutput"] 
+	    #puts "subclasses: $subclasses"
+
+	    set objects [itcl::find objects]
+
+	    #set subclasses ""
+
+	   # foreach obj $objects {
+		#if {[$obj info inherit] == "::odfi::dev::hw::package::BaseOutputGenerator"} {
+		#  lappend subclasses [$obj info class]
+		#}
+	   # }
+	    #puts "subclasses: $subclasses"
         }
 
         ## Global Parameters Generic Functions
         ###########################
 
+	## Define available Views
+	public method setViews views {
+	    set availableViews $views
+	}
+
+	## Get available Views
+	public method getViews {} {
+	    return $availableViews
+	}
+
+	public method getName {} {
+	    return $name
+	}
+	#public method getSubclasses {} {
+	#    return $subclasses
+	#}
         ## Define parameters by passing a map like syntax list
         public method defineParameters entries {
             
@@ -343,13 +382,32 @@ namespace eval odfi::dev::hw::package {
 
     }
 
+
+    #########################
+    ## Test Output to test available Producers
+    #########################
+    itcl::class TestOutput {
+	inherit BaseOutputGenerator
+
+	constructor cFootprint {BaseOutputGenerator::constructor $cFootprint} {
+
+        }
+	public method produceToString args {
+	     set view [odfi::list::arrayGetDefault $args "-view" ""]
+	     return "TestOutPut - View: $view"
+	}
+    }
+
+
     #########################
     ## SVG Output 
     #########################
     itcl::class SVGOutput {
         inherit BaseOutputGenerator
 
-       
+	public variable name "SVGOutput"
+
+	public variable availableViews "topview bottomview aa"
         odfi::common::classField protected pinSize 20
 
         odfi::common::classField protected gridSpacing 5
@@ -365,8 +423,18 @@ namespace eval odfi::dev::hw::package {
             
         }
 
+	public method getName {} {
+	    return $name
+	}
+	public method getViews {} {
+	    return $availableViews
+	}
         ## Create SVG To Given String
         public method produceToString args {
+
+	    set view [odfi::list::arrayGetDefault $args "-view" ""]
+
+	    ##TODO - VIEWS
 
             ## Create SVG
             ###################
@@ -399,50 +467,60 @@ namespace eval odfi::dev::hw::package {
                 ## Add a rounded rectangle for all the pins 
                 ## Every width count, add the line name 
                 ########################
-                set count 0 
-                foreach {location pin} [$footPrint getPinsArray] {
+		#TODO addGroup pins {
+		  set count 0 
+		  foreach {location pin} [$footPrint getPinsArray] {
 
-                    if {[expr $count%[$footPrint width]]==0} {
+		      if {[expr $count%[$footPrint width]]==0} {
 
-                        text [$pin getRow]
-                    }
+			  text [$pin getRow]
+		      }
 
-                    addRect {
+		      addRect {
 
-                        width   $pinSize
-                        height  $pinSize
-                        rounded 5
-                        title [$pin name]
+			  width   $pinSize
+			  height  $pinSize
+			  rounded 5
+			  title [$pin name]
 
-                        ## Parameters specific to name based patterns
-                        ##################
+			  ## Parameters specific to name based patterns
+			  ##################
 
-                        ## Color 
-                        #puts "Inside rect with $producer"
-                        color   [$producer getColorForPin $pin white]
+			  ## Color 
+			  #puts "Inside rect with $producer"
+			  color   [$producer getColorForPin $pin white]
 
-                        ## Non Existent/Non Connected are not to be seen
-                        if {[$pin nonExistent]} {
-                            opacity 0.0
-                        }
-                        #border  [$producer getBorderForPin $pin white]
-                        #[$producer getParameterForNameAnd [$pin name] color {
-                        #    color $value
-                        #}]
-                       
-                        
-                    }
+			  ## Non Existent/Non Connected are not to be seen
+			  if {[$pin nonExistent]} {
+			      opacity 0.0
+			  }
+			  #border  [$producer getBorderForPin $pin white]
+			  #[$producer getParameterForNameAnd [$pin name] color {
+			  #    color $value
+			  #}]
+			
+			  
+		      }
 
-                    incr count
+		      incr count
 
-                }
 
+		  }
+		#}
                 ## Layout as Grid (width+1 columns because of line text column)
                 layout "flowGrid" [list \
                     columns [expr [$footPrint width]+1] \
                     spacing $gridSpacing \
 
                 ]
+
+		 #change layout according to view
+		 if {$view == "bottomview"} {
+		     layout "mirrorY" {
+   
+		     }
+		     
+		  }
 
             }]
 
