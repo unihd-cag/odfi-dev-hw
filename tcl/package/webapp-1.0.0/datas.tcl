@@ -39,7 +39,10 @@ data /package/views {
 
  implementation {
 
-    set prod [$application producer]
+  if {[regexp {producer=([^&]+)&?} $request(query) -> prod]} {
+     set prod [::ncgi::decode $prod]
+     $app producer $prod
+  }
 
     json {
        - result : "[$prod getViews]"

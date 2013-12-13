@@ -48,6 +48,9 @@
 	  choiceSelection.setAttribute('checked','true');
 	}
 	//TODO Onchange: Update views with views of clicked producer
+	//choiceSelection.setAttribute('onchange','newViews(\''+name+'\')');
+
+	// <input onclick="newViews('name')"/>
 
 	frag.appendChild(choiceSelection);
 	var label=document.createTextNode(parseProducer(name));
@@ -63,8 +66,7 @@
 
    function addItem(form,Text,Value)	{
         // Create an Option object
-       
-        var opt = document.createElement("option");
+       var opt = document.createElement("option");
         
         // Add an Option object to Drop Down/List Box
         document.getElementById(form).options.add(opt);
@@ -83,19 +85,19 @@
     }
   }
 
-  function updateViews() {
+  function updateViews(name) {
    $.ajax({
-	    url : "/package/data/package/views",
+	    url : "/package/data/package/views?producer="+name,
 	    dataType: "json",
 	    type: 'GET'
 	}).done(function(data) {
 	    if (data.result == "No Packages available!") {
 	      addItem("packageview",data.result, data.result);
 	    } else {
-	      var files = data.result.split(" ");
+	      var views = data.result.split(" ");
 	      clearMenu("packageview");
 	      for (var i=0; i<files.length; i++) {
-		addItem("packageview",files[i],files[i]);
+		addItem("packageview",views[i],views[i]);
 	      }
 	  }
 	})
