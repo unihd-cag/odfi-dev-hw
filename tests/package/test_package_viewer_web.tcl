@@ -13,14 +13,15 @@ package require odfi::dev::hw::package
 
 #test:
 #give csvFile via command line
-#set filename "[lindex $argv 0]"
+#set filename "[lindex $argv 0]
 
-set directories ~/modules-manager/install/dev-hw/tests/package
+## Curent Directory
+set directories [file dirname [file normalize [info script]]]
 
 #set directories ""
 #set filelist ""
 #set filelist [glob -directory [lindex $directories 0] *.package.csv]
-set filelist [glob -directory ~/modules-manager/install/dev-hw/tests/package *.package.csv]
+set filelist [glob -directory $directories *.package.csv]
 set filename [lindex $filelist 0]
 #set csvFile "~/modules-manager/install/dev-hw/tests/package/test.package.csv"
 set csvFile $filename
