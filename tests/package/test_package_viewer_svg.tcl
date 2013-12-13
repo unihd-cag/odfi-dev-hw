@@ -8,7 +8,11 @@ package require odfi::dev::hw::package
 ##########################################
 ## CSV ###################################
 
-set csvFile [file dirname [file normalize [info script]]]/hmc_4_link_ballout.csv
+#original:
+#set csvFile [file dirname [file normalize [info script]]]/hmc_4_link_ballout.csv
+
+#test:
+set csvFile [file dirname [file normalize [info script]]]/test.csv
 
 ## Create Foot print 
 odfi::dev::hw::package::Footprint footprint

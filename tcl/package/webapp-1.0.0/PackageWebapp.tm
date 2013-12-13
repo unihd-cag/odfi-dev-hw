@@ -19,6 +19,21 @@ namespace eval odfi::dev::hw::package::www {
         ## The currently selected package 
         odfi::common::classField protected currentPackage ""
 
+	## Available packages
+	odfi::common::classField protected availablePackages ""
+
+	##The Directories
+	odfi::common::classField protected directories ""
+
+	##Load Rules for current Package
+	odfi::common::classField protected rules ""
+
+	## current producer
+	odfi::common::classField protected producer ""
+
+	##availableProducers
+	odfi::common::classField protected availableProducers ""
+
         constructor args {odfi::ewww::webdata::WebdataApplication::constructor "package" {}} {
 
             ## Init 
