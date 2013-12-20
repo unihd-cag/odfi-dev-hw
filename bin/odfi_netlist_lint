@@ -1,7 +1,7 @@
 #!/usr/bin/env edidtclsh
 
 package require odfi::tool 1.0.0
-package require odfi::implementation::edid::netlist 1.0.0
+package require odfi::dev::hw::netlist  1.0.0
 
 odfi::tool::describe {
 
