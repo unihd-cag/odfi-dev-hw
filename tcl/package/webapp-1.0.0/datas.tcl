@@ -35,14 +35,21 @@ data /package/current {
 
 }
 
+#get views for producer selected
 data /package/views {
 
  implementation {
 
   if {[regexp {producer=([^&]+)&?} $request(query) -> prod]} {
+
      set prod [::ncgi::decode $prod]
-     $app producer $prod
+     set obj [itcl::find objects -class $prod]
+      set prod [lindex $obj 0]
+     $application producer $prod
   }
+
+  set prod [$application producer]
+
 
     json {
        - result : "[$prod getViews]"
@@ -51,6 +58,7 @@ data /package/views {
   }
 }
 
+#get available packages
 data /package/available {
 
  implementation {
@@ -79,7 +87,7 @@ data /package/available {
 
 }
 
-
+#get rules to a package
 data /package/rules {
   implementation {
       set pack [$application currentPackage]
@@ -105,20 +113,25 @@ data /package/rules {
       append filename $pName
       append filename ".package.rules"
 
+      #TODO Check for nonexisiting rules
+      #try {
+	set fp [open $filename r]
+	set file_data [read $fp]
+	close $fp
+      #} catch {default} {
+	#set file_data "No Rules saved for this package"
+      #}
 
-      set fp [open $filename r]
-      set file_data [read $fp]
-      close $fp
-
+ 
       switch -exact -- $filename {
 	"" {
 	  json {
-		      - result : "[::ncgi::encode $file_data]"
+		      - result : "[::ncgi::decode $file_data]"
 		  }
 	}
 	default {
 	  json {
-                    - result : "[::ncgi::encode $file_data]"
+                    - result : "[::ncgi::decode $file_data]"
                 }
 	}
       }
@@ -126,6 +139,7 @@ data /package/rules {
   }
 }
 
+#get directories that have been added
 data /package/directories {
 
  implementation {
@@ -154,6 +168,7 @@ data /package/directories {
 
 }
 
+#get available producers
 data /package/availableProducers {
 
  implementation {
@@ -212,8 +227,7 @@ data /producer/produce {
             if {[regexp {rulesArea=([^&]+)&?} $request(query) -> rules]} {
 
                 set rules [::ncgi::decode $rules]
-		#set rules [split $rules "&"]
-		#set rules [lindex $rules 0]
+		#TODO: Check if rules = saved rules
 		puts "Using rules: $rules"
                 $out defineParameters $rules
 		$application producer $out

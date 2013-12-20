@@ -42,15 +42,16 @@
 	var name = names[i];
 	var choiceSelection = document.createElement('input');
 	choiceSelection.setAttribute('type', 'radio');
+	choiceSelection.setAttribute('id', 'producerselection');
 	choiceSelection.setAttribute('name', 'producer');
 	choiceSelection.setAttribute('value', name);
 	if (i == 1) {
 	  choiceSelection.setAttribute('checked','true');
 	}
-	//TODO Onchange: Update views with views of clicked producer
-	//choiceSelection.setAttribute('onchange','newViews(\''+name+'\')');
+	
+	choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
 
-	// <input onclick="newViews('name')"/>
+	
 
 	frag.appendChild(choiceSelection);
 	var label=document.createTextNode(parseProducer(name));
@@ -96,7 +97,7 @@
 	    } else {
 	      var views = data.result.split(" ");
 	      clearMenu("packageview");
-	      for (var i=0; i<files.length; i++) {
+	      for (var i=0; i<views.length; i++) {
 		addItem("packageview",views[i],views[i]);
 	      }
 	  }
@@ -108,7 +109,7 @@
     var formurl = $("#producer-select").serialize();
     console.log(formurl);
     $("#producer-output").load("/package/data/producer/produce?view=svg&"+formurl)
-    updateViews()
+    updateViews("test");
 
   }
   
@@ -146,7 +147,7 @@
 <h1>Package Viewer</h1>
 <p>
 
-This small web page will help view available packages and their actual rendering through different output generators
+This small web page will help view available packages wqwr and their actual rendering through different output generators
 
 </p>
 <p>
@@ -188,10 +189,53 @@ Add a directory:
     }
   }
 
+  
 
   $(function() {
+   /* 
+
+*/
+
+    getData().done(handleData);
+
+/*     $.ajax({
+	    url : "/package/data/package/producer",
+	    dataType: "json",
+	    type: 'GET'
+	}).done(function(data) {
+	    if (data.result == "No Packages available!") {
+	      addItem("packageview",data.result, data.result);
+	    } else {
+	      var files = data.result.split(" ");
+	      for (var i=0; i<files.length; i++) {
+		addItem("packageview",files[i],files[i]);
+	      }
+	  }
+	})*/
+
     $.ajax({
-	    url : "/package/data/package/views",
+	    url : "/package/data/package/availableProducers",
+	    dataType: "json",
+	    type: 'GET'
+	}).done(function(data) {
+	   
+	  var files = data.result.split(" ");
+	  addCheckboxes(files);
+	})
+
+    /*
+    TODO Get selected checkbox on load
+    console.log("looki"); 
+    var checkboxes = document.getElementsByName('producerselection');
+    console.log("checkboxes: " + checkboxes);
+    var i=0;
+    while (!checkboxes[i].checked && i<checkboxes.length) {
+      i++;
+    }
+    var name = checkboxes[i];
+    console.log("selected checkbox: " + name); 
+    $.ajax({
+	    url : "/package/data/package/views?producer="+name,
 	    dataType: "json",
 	    type: 'GET'
 	}).done(function(data) {
@@ -205,36 +249,7 @@ Add a directory:
 	      }
 	  }
 	})
-
-
-
-    getData().done(handleData);
-
-     $.ajax({
-	    url : "/package/data/package/producer",
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	    if (data.result == "No Packages available!") {
-	      addItem("packageview",data.result, data.result);
-	    } else {
-	      var files = data.result.split(" ");
-	      for (var i=0; i<files.length; i++) {
-		addItem("packageview",files[i],files[i]);
-	      }
-	  }
-	})
-
-    $.ajax({
-	    url : "/package/data/package/availableProducers",
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	   
-	  var files = data.result.split(" ");
-	  addCheckboxes(files);
-	})
-
+*/
   })
 </script>
 
@@ -387,7 +402,7 @@ Add a directory:
         </div>
 
         <div>
-            <h4>Package Information</h4>
+            <!--<h4>Package Information</h4>
 
 
             <%
@@ -406,7 +421,7 @@ Add a directory:
 
 		      }
 		  }
-            %>
+            %>-->
         </div>
 
     </div>
