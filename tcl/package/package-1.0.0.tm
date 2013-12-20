@@ -30,16 +30,20 @@ namespace eval odfi::dev::hw::package {
 
             ## Default 
             name "$this"
-
+	    if { $args != ""} {
+	     odfi::closures::doClosure $args
+	    }
         }
 
         ## Add a pin definition, and updates size of array
-        public method addPinDefinition {position name} {
+        public method addPinDefinition {name closure} {
 
             
 
             ## Create Pin
-            set pin [::new [namespace parent]::PackagePin #auto $position $name]
+            set pin [::new [namespace parent]::PackagePin #auto $name $closure]
+
+	    set position [$pin getPos]
 
             ## Add/Replace
             set pinsArray [odfi::list::arrayReplace $pinsArray $position $pin]
@@ -57,6 +61,10 @@ namespace eval odfi::dev::hw::package {
 
         }
 
+	public method pin {name closure} {
+	    addPinDefinition $name $closure
+	}
+
         ## @return the internal pin arrays map
         public method getPinsArray  args {
             return $pinsArray
@@ -70,12 +78,20 @@ namespace eval odfi::dev::hw::package {
 
             foreach {position name} $args  {
 
-                addPinDefinition $position $name
-
+                #addPinDefinition $position $name
+		pin $name {
+		  location $position
+		}
             }
 
 
         }
+
+	public method info {} {
+	  foreach {pos pin} $pinsArray {
+	      $pin info
+	  }
+	}
 
         ## Read Some pin Definitions based on a CSV file, with columns beeing numbers and Lines letter
         public method readCSV csvContent {
@@ -96,6 +112,8 @@ namespace eval odfi::dev::hw::package {
                 ## Remaining are pins definitions 
                 ## Empty pin content means a non existent pin
                 set count 1
+
+		#TODO: use method pin
                 foreach pinDefinition [lrange $definitions 1 end] {
 
                     #if {$pinDefinition==""} {
@@ -121,7 +139,6 @@ namespace eval odfi::dev::hw::package {
     itcl::class Footprint {
         inherit Package
 
-
     }
 
 
@@ -144,15 +161,17 @@ namespace eval odfi::dev::hw::package {
 
         public variable column  0
 
+	public variable attributes {}
+
         ## If this is a non existent pin
         odfi::common::classField public nonExistent false
 
-        constructor {cPosition cName  {closure {}}} {
+        constructor {cName  {closure {}}} {
 
             ## Init
             #############
             set name     [string trim $cName]
-            set position [string trim $cPosition]
+            #set position [string trim $cPosition]
 
             ## Non existent ? 
             if {$name==""} {
@@ -161,7 +180,7 @@ namespace eval odfi::dev::hw::package {
             }
 
             odfi::closures::doClosure $closure
-
+	    set position [string trim $position]
 
             ## Analyse position
             ## Format: AAAAA0000000  Letters giving the row, and numbers giving the column
@@ -195,6 +214,24 @@ namespace eval odfi::dev::hw::package {
 
         }
 
+
+	public method location {loc} {
+	    set position $loc
+	}
+
+	public method getPos {} {
+	    return $position
+	}
+
+	public method info {} {
+	    puts "name: $name"
+	    puts "location: $position"
+	    puts "attributes: $attributes"
+	}
+
+	public method addAttribute {name value} {
+	  lappend attributes "$name,$value"
+	}
 
         ## @return Integer position in X direction
         public method getX args {
