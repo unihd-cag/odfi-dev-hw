@@ -402,7 +402,7 @@ Add a directory:
         </div>
 
         <div>
-            <h4>Package Information</h4>
+            <!--<h4>Package Information</h4>
 
 
             <%
@@ -421,7 +421,7 @@ Add a directory:
 
 		      }
 		  }
-            %>
+            %>-->
         </div>
 
     </div>

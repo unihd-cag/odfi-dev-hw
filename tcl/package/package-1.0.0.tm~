@@ -30,9 +30,10 @@ namespace eval odfi::dev::hw::package {
 
             ## Default 
             name "$this"
-    	    if { "$args" != ""} {
-    	     odfi::closures::doClosure [join $args]
-    	    }
+	    puts "length: [string length $args]"
+	    if {[string length $args] != 0} {
+	     odfi::closures::doClosure $args
+	    }
         }
 
         ## Add a pin definition, and updates size of array

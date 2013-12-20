@@ -42,16 +42,15 @@
 	var name = names[i];
 	var choiceSelection = document.createElement('input');
 	choiceSelection.setAttribute('type', 'radio');
-	choiceSelection.setAttribute('id', 'producerselection');
 	choiceSelection.setAttribute('name', 'producer');
 	choiceSelection.setAttribute('value', name);
 	if (i == 1) {
 	  choiceSelection.setAttribute('checked','true');
 	}
-	
+	//TODO Onchange: Update views with views of clicked producer
 	choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
 
-	
+	// <input onclick="newViews('name')"/>
 
 	frag.appendChild(choiceSelection);
 	var label=document.createTextNode(parseProducer(name));
@@ -86,9 +85,10 @@
     }
   }
 
+  //?producer="+name,
   function updateViews(name) {
    $.ajax({
-	    url : "/package/data/package/views?producer="+name,
+	    url : "/package/data/package/views"
 	    dataType: "json",
 	    type: 'GET'
 	}).done(function(data) {
@@ -97,7 +97,7 @@
 	    } else {
 	      var views = data.result.split(" ");
 	      clearMenu("packageview");
-	      for (var i=0; i<views.length; i++) {
+	      for (var i=0; i<files.length; i++) {
 		addItem("packageview",views[i],views[i]);
 	      }
 	  }
@@ -109,7 +109,7 @@
     var formurl = $("#producer-select").serialize();
     console.log(formurl);
     $("#producer-output").load("/package/data/producer/produce?view=svg&"+formurl)
-    updateViews("test");
+    updateViews("blbblbl")
 
   }
   
@@ -148,7 +148,7 @@
 <p>
 
 This small web page will help view available packages and their actual rendering through different output generators
-
+TESTEST
 </p>
 <p>
 <form if = "pack" method="get">
@@ -189,16 +189,29 @@ Add a directory:
     }
   }
 
-  
 
   $(function() {
-   /* 
+    $.ajax({
+	    url : "/package/data/package/views",
+	    dataType: "json",
+	    type: 'GET'
+	}).done(function(data) {
+	    if (data.result == "No Packages available!") {
+	      addItem("packageview",data.result, data.result);
+	    } else {
+	      var files = data.result.split(" ");
+	      clearMenu("packageview");
+	      for (var i=0; i<files.length; i++) {
+		addItem("packageview",files[i],files[i]);
+	      }
+	  }
+	})
 
-*/
 
-    getData().done(handleData);
 
-/*     $.ajax({
+    /*getData().done(handleData);
+
+     $.ajax({
 	    url : "/package/data/package/producer",
 	    dataType: "json",
 	    type: 'GET'
@@ -223,40 +236,13 @@ Add a directory:
 	  addCheckboxes(files);
 	})
 
-    /*
-    TODO Get selected checkbox on load
-    console.log("looki"); 
-    var checkboxes = document.getElementsByName('producerselection');
-    console.log("checkboxes: " + checkboxes);
-    var i=0;
-    while (!checkboxes[i].checked && i<checkboxes.length) {
-      i++;
-    }
-    var name = checkboxes[i];
-    console.log("selected checkbox: " + name); 
-    $.ajax({
-	    url : "/package/data/package/views?producer="+name,
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	    if (data.result == "No Packages available!") {
-	      addItem("packageview",data.result, data.result);
-	    } else {
-	      var files = data.result.split(" ");
-	      clearMenu("packageview");
-	      for (var i=0; i<files.length; i++) {
-		addItem("packageview",files[i],files[i]);
-	      }
-	  }
-	})
-*/
   })
 </script>
 
 
 <p>
     <%
-
+    puts "current: [$application currentPackage]"
       proc urlDecode {url} {
 
 	regsub -all {\+} $url { } url

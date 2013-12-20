@@ -1,0 +1,251 @@
+<?xml version="1.0" ?>
+            <svg width='136' height='99' xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">
+    <text  x="5"
+                y="0"
+                width="0"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                ></text>
+    <text  x="21"
+                y="0"
+                width="10"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >1</text>
+    <text  x="46"
+                y="0"
+                width="10"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >2</text>
+    <text  x="71"
+                y="0"
+                width="10"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >3</text>
+    <text  x="96"
+                y="0"
+                width="10"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >4</text>
+    <text  x="121"
+                y="0"
+                width="10"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >5</text>
+    <text  x="0"
+                y="26"
+                width="11"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >A</text>
+    <rect  x="16"
+                y="26"
+                width="20"
+                height="20"
+                opacity="0.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>NE</title></rect>
+    <rect  x="41"
+                y="26"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="blue"
+                stroke="black"><title>VSS</title></rect>
+    <rect  x="66"
+                y="26"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>L2TXP[4]</title></rect>
+    <rect  x="91"
+                y="26"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>L2TXN[4]</title></rect>
+    <rect  x="116"
+                y="26"
+                width="20"
+                height="20"
+                opacity="0.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>NE</title></rect>
+    <text  x="0"
+                y="52"
+                width="11"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >B</text>
+    <rect  x="16"
+                y="52"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="blue"
+                stroke="black"><title>VSS</title></rect>
+    <rect  x="41"
+                y="52"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="blue"
+                stroke="black"><title>VSS</title></rect>
+    <rect  x="66"
+                y="52"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="blue"
+                stroke="black"><title>VSS</title></rect>
+    <rect  x="91"
+                y="52"
+                width="20"
+                height="20"
+                opacity="0.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>NE</title></rect>
+    <rect  x="116"
+                y="52"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>L2RXP[1]</title></rect>
+    <text  x="0"
+                y="78"
+                width="11"
+                height="21"
+                opacity="1.0"
+
+                font-family="Verdana"
+                font-size="12"
+                
+                dx="0"
+                dy="21"
+
+                fill="black"
+                stroke="black"
+
+                >C</text>
+    <rect  x="16"
+                y="78"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>L2RXN[1]</title></rect>
+    <rect  x="41"
+                y="78"
+                width="20"
+                height="20"
+                opacity="1.0"
+                rx="5" ry="5"
+                fill="blue"
+                stroke="black"><title>VSS</title></rect>
+    <rect  x="66"
+                y="78"
+                width="20"
+                height="20"
+                opacity="0.0"
+                rx="5" ry="5"
+                fill="white"
+                stroke="black"><title>NE</title></rect>
+</svg>
