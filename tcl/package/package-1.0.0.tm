@@ -74,13 +74,16 @@ namespace eval odfi::dev::hw::package {
 
         ## Read Some Pin Definitions from an input list containing {position name} pairs
         #
-        public method readInputList args {
+        public method readInputList list {
 
-            foreach {position name} $args  {
-
+            foreach el $list  {
+		
+		set name [lindex $el 1]
+		set position [lindex $el 0]
+		puts "pos: $position  name: $name"
                 #addPinDefinition $position $name
 		pin $name {
-		  location $position
+		  location $::position
 		}
             }
 
@@ -102,7 +105,7 @@ namespace eval odfi::dev::hw::package {
             ## Ignore First line, because we don't really need the columns definitions (they are always 1,2,3....)
             set lines [lrange $lines 1 end]
             foreach line $lines {
-
+		
                 ## Split to , 
                 set definitions [split $line ,] 
 
@@ -119,9 +122,15 @@ namespace eval odfi::dev::hw::package {
                     #if {$pinDefinition==""} {
                     #    continue
                     #}
-
+		      set loc "${lineLocation}$count"
+		      puts "loc: $loc"
+		      #puts "count: $count"
                     ## Add pin definition if name is defined
-                    addPinDefinition "${lineLocation}$count" $pinDefinition
+                    #addPinDefinition "${lineLocation}$count" $pinDefinition
+
+		     pin "$pinDefinition" {
+			    location $::loc
+		      }
 
                     ## increment column
                     incr count
@@ -166,7 +175,7 @@ namespace eval odfi::dev::hw::package {
         ## If this is a non existent pin
         odfi::common::classField public nonExistent false
 
-        constructor {cName  {closure {}}} {
+        constructor {cName  closure} {
 
             ## Init
             #############
