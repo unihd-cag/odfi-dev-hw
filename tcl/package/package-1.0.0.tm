@@ -43,7 +43,7 @@ namespace eval odfi::dev::hw::package {
             ## Create Pin
             set pin [::new [namespace parent]::PackagePin #auto $name $closure]
 
-	    set position [$pin getPos]
+	       set position [$pin getPos]
 
             ## Add/Replace
             set pinsArray [odfi::list::arrayReplace $pinsArray $position $pin]
@@ -78,13 +78,13 @@ namespace eval odfi::dev::hw::package {
 
             foreach el $list  {
 		
-		set name [lindex $el 1]
-		set position [lindex $el 0]
-		puts "pos: $position  name: $name"
+                set name [lindex $el 1]
+                set position [lindex $el 0]
+                puts "pos: $position  name: $name"
                 #addPinDefinition $position $name
-		pin $name {
-		  location $::position
-		}
+                pin $name {
+                    location $position
+                }
             }
 
 
@@ -170,11 +170,13 @@ namespace eval odfi::dev::hw::package {
 
         public variable column  0
 
-	public variable attributes {}
+	   public variable attributes {}
 
         ## If this is a non existent pin
         odfi::common::classField public nonExistent false
 
+
+        ## Create object from closure
         constructor {cName  closure} {
 
             ## Init
@@ -189,7 +191,14 @@ namespace eval odfi::dev::hw::package {
             }
 
             odfi::closures::doClosure $closure
-	    set position [string trim $position]
+            
+
+        }
+
+        ## Set Pin location using A0/A1 etc.. format
+        ## The X/Y Position is extracted by analysing the location format (Letters for Y and digits for X)
+    	public method location {loc} {
+    	    set position $loc
 
             ## Analyse position
             ## Format: AAAAA0000000  Letters giving the row, and numbers giving the column
@@ -221,22 +230,17 @@ namespace eval odfi::dev::hw::package {
             #### Column X position : This is just a number
             set x $column
 
-        }
+    	}
 
+    	public method getPos {} {
+    	    return $position
+    	}
 
-	public method location {loc} {
-	    set position $loc
-	}
-
-	public method getPos {} {
-	    return $position
-	}
-
-	public method info {} {
-	    puts "name: $name"
-	    puts "location: $position"
-	    puts "attributes: $attributes"
-	}
+    	public method info {} {
+    	    puts "name: $name"
+    	    puts "location: $position"
+    	    puts "attributes: $attributes"
+    	}
 
 	public method addAttribute {name value} {
 	  lappend attributes "$name,$value"
