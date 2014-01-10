@@ -90,11 +90,11 @@ namespace eval odfi::dev::hw::package {
 
         }
 
-	public method info {} {
-	  foreach {pos pin} $pinsArray {
-	      $pin info
-	  }
-	}
+    	public method packageInfo args {
+    	  foreach {pos pin} $pinsArray {
+    	      $pin pinInfo
+    	  }
+    	}
 
         ## Read Some pin Definitions based on a CSV file, with columns beeing numbers and Lines letter
         public method readCSV csvContent {
@@ -129,7 +129,7 @@ namespace eval odfi::dev::hw::package {
                     #addPinDefinition "${lineLocation}$count" $pinDefinition
 
 		     pin "$pinDefinition" {
-			    location $::loc
+			    location $loc
 		      }
 
                     ## increment column
@@ -236,7 +236,7 @@ namespace eval odfi::dev::hw::package {
     	    return $position
     	}
 
-    	public method info {} {
+    	public method pinInfo {} {
     	    puts "name: $name"
     	    puts "location: $position"
     	    puts "attributes: $attributes"
