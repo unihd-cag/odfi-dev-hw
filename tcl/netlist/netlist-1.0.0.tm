@@ -34,6 +34,10 @@ namespace eval odfi::dev::hw::netlist {
             }
         }
 
+        public method getSources args {
+            return $sources
+        }
+
         ## F Files 
         ###############
         public method addFfile path {
@@ -164,11 +168,17 @@ namespace eval odfi::dev::hw::netlist {
 
             # Line parsing
             ##################
+            set currentLine 0
             while {[gets $fchan line] >= 0} {
 
                 #set line [string trim $line]
                 set line [odfi::common::resolveEnvVariable [string trim $line]]
-                puts "Parsing line: $line"
+                #puts "Parsing line: $line"
+
+                ## Remove Comments from line 
+                set line [string trim [regsub {#.*} $line ""]]
+
+                #puts "Parsing line after comment: $line"
 
 
                 ## Use Switch
@@ -205,6 +215,10 @@ namespace eval odfi::dev::hw::netlist {
 
                     }
 
+                    "*.f" {
+                        odfi::common::logWarn "Found F File $line without -f, in file $ffile at line $currentLine "
+                    }
+
 
                     +incdir+* {
                         lappend incdirs [regsub -- {\+incdir\+(.+)} $line {\1}]
@@ -225,11 +239,14 @@ namespace eval odfi::dev::hw::netlist {
                         #puts "Unmatched: /$line/"
                     }
                 }
+
+                incr currentLine
             }
-            ## EOF Current F File
+            ## EOF Current F File line loop
 
             close $fchan
         }
+        ## EOF all ffiles
 
         return $fFile
 
