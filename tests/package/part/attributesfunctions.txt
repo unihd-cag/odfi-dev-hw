@@ -1,0 +1,35 @@
+
+# Attribute function Implementation
+#################
+proc output args {
+	
+	uplevel 1 addAttribute "output" 1
+
+}
+
+# User attribute definition
+##############
+odfi::dev::hw::package::attributeFunction ::output
+odfi::dev::hw::package::attributeFunction ::differential
+
+## Attribute function
+######################
+proc attributeFunction {fname} {
+  
+        set attributeName [string trimleft $fname ::]
+
+        ## If name is not categorized using xx.xxx.attributeName, set it to global.attributeName
+        if {![string match *.* $attributeName]} {
+            set attributeName "global.$attributeName"
+        }
+
+        set res "proc $fname args {
+            uplevel 1 addAttribute $attributeName \$args 
+        }"
+        uplevel 1 $res 
+ 
+ }  
+
+
+
+
