@@ -60,7 +60,7 @@
 	frag.appendChild(br);
 
     }
-
+    updateViews(names[1]); //initial views
     document.getElementById('producers').appendChild(frag);
   }
 
@@ -109,7 +109,7 @@
     var formurl = $("#producer-select").serialize();
     console.log(formurl);
     $("#producer-output").load("/package/data/producer/produce?view=svg&"+formurl)
-    updateViews("test");
+    //updateViews("test");
 
   }
   
@@ -127,16 +127,19 @@
 
   function load() {
 
-      $("#rulesArea").text("Loading Rules....")
+    $("#rulesArea").text("Loading Rules....")
+    //console.log("Start ajax call");
+    $.ajax({
+        url : "/package/data/package/rules",
+        dataType: "json",
+        type: 'GET'
+    }).done(function(data) {
+            
+        console.log("result: " + decodeURIComponent(data.result));
+        $("#rulesArea").val(decodeURIComponent(data.result));
+    })
+    //console.log("Finish ajax call");
 
-      $.ajax({
-	    url : "/package/data/package/rules",
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	    console.log("result: " + decodeURIComponent(data.result));
-	    $("#rulesArea").val(decodeURIComponent(data.result));
-	})
   }
 
 </script>
@@ -402,26 +405,39 @@ Add a directory:
         </div>
 
         <div>
-            <!--<h4>Package Information</h4>
+            <h4>Package Information</h4>
 
 
             <%
-		  table {
+        
+                table {
 
-		      set id "package-infos-pins"
-		      header {
-			  column "Pin Name"
-		      }
+                    set id "package-infos-pins"
+                    header {
+                        column "Pin Name"
+                        column "Pin Attributes"
+                        column "Attribute value"
+                    }
 
-		      body {
+                    body {
+                        set i 0
+                        set space "&nbsp"
+                        foreach {location pin} [[$application currentPackage] getPinsArray] {
+                            #set attr {{"0Attribute$i" "True"} {"1Attribute$i" 3} {"2Attribute$i" "False"}}
+                            
+                            row "[$pin name] $space $space"
+                            foreach a [$pin getAttributes] {
+                                set name [lindex $a 0]
+                                set value [lindex $a 1]
+                                row "$space $name $value"
+                            }
+                            
+                            incr i
+                        }
 
-			foreach {location pin} [[$application currentPackage] getPinsArray] {  
-			  row [$pin name]
-			}
-
-		      }
-		  }
-            %>-->
+                    }
+                }
+            %>
         </div>
 
     </div>

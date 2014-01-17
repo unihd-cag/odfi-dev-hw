@@ -51,7 +51,7 @@ foreach obj $objects {
       lappend producers [$obj info class]
    }
 }
-
+puts "available Producers: $producers"
 ##Create BaseOutputGenerator for different producers
 #set producers [::new odfi::dev::hw::package::BaseOutputGenerator #auto ::footprint]
 

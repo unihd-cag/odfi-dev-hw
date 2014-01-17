@@ -4,12 +4,38 @@ package require odfi::common
 package require odfi::files
 package require odfi::scenegraph::svg
 
+
+
+
 namespace eval odfi::dev::hw::package {
+
+    ## Attribute function
+    ######################
+    proc attributeFunction {fname} {
+    
+            set attributeName [string trimleft $fname ::]
+            
+            ## If name is not categorized using xx.xxx.attributeName, set it to global.attributeName
+            if {![string match *.* $attributeName]} {
+                set attributeName "global.$attributeName"
+            }
+
+            set res "proc $fname args {
+                uplevel 1 addAttribute $attributeName \$args
+            }"
+            uplevel 1 $res 
+    
+    }  
+
+    proc part {name closure} {   
+        set $name [::new odfi::dev::hw::package::Part "#auto" $closure]
+    }
+
 
     ########################
     ## Base Package Definition
     #########################
-    itcl::class Package {
+    itcl::class Part {
 
         ## Name of the package 
         odfi::common::classField public name "unnamed"
@@ -30,20 +56,21 @@ namespace eval odfi::dev::hw::package {
 
             ## Default 
             name "$this"
-    	    if { "$args" != ""} {
-    	     odfi::closures::doClosure [join $args]
-    	    }
+            puts "constructing new Part object $name"
+            if { "$args" != ""} {
+                odfi::closures::doClosure [join $args]
+            }
         }
 
         ## Add a pin definition, and updates size of array
         public method addPinDefinition {name closure} {
 
-            
+
 
             ## Create Pin
-            set pin [::new [namespace parent]::PackagePin #auto $name $closure]
+            set pin [::new [namespace parent]::Pin #auto $name $closure]
 
-	       set position [$pin getPos]
+            set position [$pin getPos]
 
             ## Add/Replace
             set pinsArray [odfi::list::arrayReplace $pinsArray $position $pin]
@@ -116,14 +143,14 @@ namespace eval odfi::dev::hw::package {
                 ## Empty pin content means a non existent pin
                 set count 1
 
-		#TODO: use method pin
+		
                 foreach pinDefinition [lrange $definitions 1 end] {
 
                     #if {$pinDefinition==""} {
                     #    continue
                     #}
 		      set loc "${lineLocation}$count"
-		      puts "loc: $loc"
+		      #puts "loc: $loc"
 		      #puts "count: $count"
                     ## Add pin definition if name is defined
                     #addPinDefinition "${lineLocation}$count" $pinDefinition
@@ -146,7 +173,7 @@ namespace eval odfi::dev::hw::package {
     ## Footprint Class
     #########################
     itcl::class Footprint {
-        inherit Package
+        inherit Part
 
     }
 
@@ -154,7 +181,7 @@ namespace eval odfi::dev::hw::package {
     ######################
     ## Object for Package Pin
     ##############################
-    itcl::class PackagePin {
+    itcl::class Pin {
 
         ## Name of Pin
         odfi::common::classField public name ""
@@ -170,7 +197,7 @@ namespace eval odfi::dev::hw::package {
 
         public variable column  0
 
-	   public variable attributes {}
+        public variable attributes {}
 
         ## If this is a non existent pin
         odfi::common::classField public nonExistent false
@@ -181,7 +208,16 @@ namespace eval odfi::dev::hw::package {
 
             ## Init
             #############
-            set name     [string trim $cName]
+
+            #Parse for Location starting wih '@'
+            foreach n $cName {
+                if {[string index $n 0] == "@"} {
+                    set position [string trim $n "@"]
+                } else {
+                    set name $n
+                }
+            }
+            set name     [string trim $name]
             #set position [string trim $cPosition]
 
             ## Non existent ? 
@@ -242,9 +278,18 @@ namespace eval odfi::dev::hw::package {
     	    puts "attributes: $attributes"
     	}
 
-	public method addAttribute {name value} {
-	  lappend attributes "$name,$value"
-	}
+        public method addAttribute {name args} {
+            if {[llength $args] <= 1} {
+                lappend attributes "$name $args"
+            } else {
+                lappend attributes "$name [lindex $args 0]"
+            }
+        
+        }
+
+        public method getAttributes {} {
+            return $attributes
+        }
 
         ## @return Integer position in X direction
         public method getX args {

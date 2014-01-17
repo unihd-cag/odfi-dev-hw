@@ -40,19 +40,20 @@ data /package/views {
 
  implementation {
 
-  if {[regexp {producer=([^&]+)&?} $request(query) -> prod]} {
+    if {[regexp {producer=([^&]+)&?} $request(query) -> prod]} {
 
-     set prod [::ncgi::decode $prod]
-     set obj [itcl::find objects -class $prod]
-      set prod [lindex $obj 0]
-     $application producer $prod
-  }
+        set prod [::ncgi::decode $prod]
+        set obj [itcl::find objects -class $prod]
+        set prod [lindex $obj 0]
+        $application producer $prod
+    }
 
-  set prod [$application producer]
+    set prod [$application producer]
 
+    set res "[$prod getViews]"
 
     json {
-       - result : "[$prod getViews]"
+       - result : "$res"
     }
 
   }
@@ -113,14 +114,13 @@ data /package/rules {
       append filename $pName
       append filename ".package.rules"
 
-      #TODO Check for nonexisiting rules
-      #try {
+      if {[file exists $filename]} {
 	set fp [open $filename r]
 	set file_data [read $fp]
 	close $fp
-      #} catch {default} {
-	#set file_data "No Rules saved for this package"
-      #}
+      } else {
+	set file_data "No Rules saved for this package"
+      }
 
  
       switch -exact -- $filename {
@@ -171,7 +171,7 @@ data /package/directories {
 #get available producers
 data /package/availableProducers {
 
- implementation {
+    implementation {
 
       set prods [$application availableProducers]  
       switch -exact -- $prods {
@@ -181,14 +181,12 @@ data /package/availableProducers {
                 }
             }
             default {
-		set res ""
-		foreach prod $prods {
-		  append res " "
-		  #foreach cl [$prod getSubclasses] {
-		    append res "$prod"
-		  #}
-		}
-               
+                set res ""
+                foreach prod $prods {
+                    append res " "
+                    append res "$prod"
+                }
+                    
                 json {
                     - result : "$res"
                 }
@@ -209,7 +207,7 @@ data /producer/produce {
 
 	set pack [$application currentPackage]
 
-        if {![odfi::common::isClass $pack odfi::dev::hw::package::Package]} {
+        if {![odfi::common::isClass $pack odfi::dev::hw::package::Part]} {
             error "Could not Find Any Selected package to produce a view"
         } else {
 
@@ -256,7 +254,7 @@ data /producer/saveRules {
   set pack [$application currentPackage]
 
   #get the directory
-  set p $pack
+  set p $pack  
 
   set f [file tail $p]
   set lenF [string length $f]
