@@ -21,17 +21,17 @@ set directories [file dirname [file normalize [info script]]]
 #set directories ""
 #set filelist ""
 #set filelist [glob -directory [lindex $directories 0] *.package.csv]
-set filelist [glob -directory $directories *.package.csv]
-set filename [lindex $filelist 0]
-#set csvFile "~/modules-manager/install/dev-hw/tests/package/test.package.csv"
-set csvFile $filename
+#set filelist [glob -directory $directories *.package.csv]
+#set filename [lindex $filelist 0]
+set csvFile "~/modules-manager/install/dev-hw/tests/package/test.package.csv"
+#set csvFile $filename
 ## Create Foot print 
-odfi::dev::hw::package::Footprint footprint
-footprint name [file tail $csvFile]
+odfi::dev::hw::package::Footprint fprint
+fprint name [file tail $csvFile]
 
 ## Read
 set f [open $csvFile]
-footprint readCSV [read $f]
+fprint readCSV [read $f]
 close $f
 
 ##Create svg
@@ -51,6 +51,8 @@ foreach obj $objects {
       lappend producers [$obj info class]
    }
 }
+#Avoid Multiple producers of the same kind:
+set producers [lsort -unique $producers]
 puts "available Producers: $producers"
 ##Create BaseOutputGenerator for different producers
 #set producers [::new odfi::dev::hw::package::BaseOutputGenerator #auto ::footprint]
@@ -59,10 +61,10 @@ puts "available Producers: $producers"
 ########################
 
 #puts "Size: [footprint width]x[footprint height]"
-puts -nonewline "Available files (must end in package.csv): "
-puts $filelist
-puts -nonewline "Directories:  "
-puts $directories
+#puts -nonewline "Available files (must end in package.csv): "
+#puts $filelist
+#puts -nonewline "Directories:  "
+#puts $directories
 
 
 ## Start Web Viewer

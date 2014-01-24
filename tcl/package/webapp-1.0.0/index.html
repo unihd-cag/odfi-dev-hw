@@ -39,25 +39,25 @@
     var frag = document.createDocumentFragment();
 
     for (var i=1; i<names.length; i++) {
-	var name = names[i];
-	var choiceSelection = document.createElement('input');
-	choiceSelection.setAttribute('type', 'radio');
-	choiceSelection.setAttribute('id', 'producerselection');
-	choiceSelection.setAttribute('name', 'producer');
-	choiceSelection.setAttribute('value', name);
-	if (i == 1) {
-	  choiceSelection.setAttribute('checked','true');
-	}
-	
-	choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
+        var name = names[i];
+        var choiceSelection = document.createElement('input');
+        choiceSelection.setAttribute('type', 'radio');
+        choiceSelection.setAttribute('id', 'producerselection');
+        choiceSelection.setAttribute('name', 'producer');
+        choiceSelection.setAttribute('value', name);
+        if (i == 1) {
+            choiceSelection.setAttribute('checked','true');
+        }
+    
+        choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
 
-	
+    
 
-	frag.appendChild(choiceSelection);
-	var label=document.createTextNode(parseProducer(name));
-	frag.appendChild(label);
-	var br=document.createElement("br");
-	frag.appendChild(br);
+        frag.appendChild(choiceSelection);
+        var label=document.createTextNode(parseProducer(name));
+        frag.appendChild(label);
+        var br=document.createElement("br");
+        frag.appendChild(br);
 
     }
     updateViews(names[1]); //initial views
@@ -87,21 +87,21 @@
   }
 
   function updateViews(name) {
-   $.ajax({
-	    url : "/package/data/package/views?producer="+name,
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	    if (data.result == "No Packages available!") {
-	      addItem("packageview",data.result, data.result);
-	    } else {
-	      var views = data.result.split(" ");
-	      clearMenu("packageview");
-	      for (var i=0; i<views.length; i++) {
-		addItem("packageview",views[i],views[i]);
-	      }
-	  }
-	})
+    $.ajax({
+            url : "/package/data/package/views?producer="+name,
+            dataType: "json",
+            type: 'GET'
+    }).done(function(data) {
+            if (data.result == "No Packages available!") {
+                addItem("packageview",data.result, data.result);
+            } else {
+                var views = data.result.split(" ");
+                clearMenu("packageview");
+                for (var i=0; i<views.length; i++) {
+                addItem("packageview",views[i],views[i]);
+                }
+            }
+    })
   }
 
   function update() {
@@ -174,7 +174,7 @@ Add a directory:
   function getData() {
     return $.ajax({
         url : "/package/data/package/available",
-	dataType: "json",
+        dataType: "json",
         type: 'GET'
     });
   }
@@ -217,14 +217,14 @@ Add a directory:
 	})*/
 
     $.ajax({
-	    url : "/package/data/package/availableProducers",
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	   
-	  var files = data.result.split(" ");
-	  addCheckboxes(files);
-	})
+        url : "/package/data/package/availableProducers",
+        dataType: "json",
+        type: 'GET'
+    }).done(function(data) {
+        
+        var files = data.result.split(" ");
+        addCheckboxes(files);
+    })
 
     /*
     TODO Get selected checkbox on load
@@ -260,38 +260,38 @@ Add a directory:
 <p>
     <%
 
-      proc urlDecode {url} {
+        proc urlDecode {url} {
 
-	regsub -all {\+} $url { } url
+            regsub -all {\+} $url { } url
 
-	regsub -all {%([0-9a-hA-H][0-9a-hA-H])} $url {[format %c 0x\1]} url
+            regsub -all {%([0-9a-hA-H][0-9a-hA-H])} $url {[format %c 0x\1]} url
 
-	return [subst $url]
+            return [subst $url]
 
-      }
+        }
 
       
-      ## Get newly selected package
-      array set request $requestArray
-      if {[regexp {package=(.+)} $request(query) -> package]} {
+        ## Get newly selected package
+        array set request $requestArray
+        if {[regexp {package=(.+)} $request(query) -> package]} {
 
-	#if {[urlDecode $package] != "No Packages available!"} {
-		puts "selected package: [urlDecode $package]"
-		set filename $package
+        #if {[urlDecode $package] != "No Packages available!"} {
+            puts "selected package: [urlDecode $package]"
+            set filename $package
 
-		##set csvFile [file dirname [file normalize [info script]]]/$filename
- 		set csvFile [ urlDecode $filename]
+            ##set csvFile [file dirname [file normalize [info script]]]/$filename
+            set csvFile [ urlDecode $filename]
 
-		## Create Foot print 
-		set packageobject [::new odfi::dev::hw::package::Footprint $csvFile.#auto]
-		$packageobject name [file tail $csvFile]
+            ## Create Foot print 
+            set packageobject [::new odfi::dev::hw::package::Footprint $csvFile.#auto]
+            $packageobject name [file tail $csvFile]
 
-		## Read
-		set f [open $csvFile]
-		$packageobject readCSV [read $f]
-		close $f
+            ## Read
+            set f [open $csvFile]
+            $packageobject readCSV [read $f]
+            close $f
 
-		$application currentPackage $packageobject
+            $application currentPackage $packageobject
         #}
       } 
 
@@ -299,28 +299,28 @@ Add a directory:
       ## get a directory that should be added; update availablePackages
       array set request $requestArray
       if {[regexp {directory=(.+)} $request(query) -> directory]} {
-		#TODO
-		puts "added directory: [urlDecode $directory]"
-		set dir [urlDecode $directory]
+            #TODO
+            puts "added directory: [urlDecode $directory]"
+            set dir [urlDecode $directory]
 
-		##get directory from file:
-		#set f [file tail $dir]
-		#set lenF [string length $f]
-		#set lenD [string length $dir]
-		#set end [expr $lenD - $lenF]
-		#set dir [string range $dir 0 $end]
+            ##get directory from file:
+            #set f [file tail $dir]
+            #set lenF [string length $f]
+            #set lenD [string length $dir]
+            #set end [expr $lenD - $lenF]
+            #set dir [string range $dir 0 $end]
 
 
-		set dirs [$application directories]
-		lappend dirs $dir
-		$application directories $dir
+            set dirs [$application directories]
+            lappend dirs $dir
+            $application directories $dir
 
-		set files [$application availablePackages]
-		set newFiles [glob -directory $dir *.package.csv]
+            set files [$application availablePackages]
+            set newFiles [glob -directory $dir *.package.csv]
 
-		lappend files $newFiles
-		$application availablePackages $files
-		##puts "updated files: [$application availablePackages]"
+            lappend files $newFiles
+            $application availablePackages $files
+            ##puts "updated files: [$application availablePackages]"
             }
 
     %>
@@ -367,14 +367,14 @@ Add a directory:
                     <div>Rules:</div>
                     <textarea id="rulesArea" name="rulesArea" rows="15" style="width: 100%" name="rules"></textarea>
                 </div>
-		<div>
-		    <select id = "packageview" name="packageview"></select>
-		</div>
+                <div>
+                    <select id = "packageview" name="packageview"></select>
+                </div>
                 <div>
                     <input type="button" value="preview" onclick="update();"></input>
-		    <input type="button" value="save" onclick="save();"></input>
-		    <input type="button" value="load" onclick="load();"></input>
-		    <input type="button" value="reset" onclick="clearArea();"></input>
+                    <input type="button" value="save" onclick="save();"></input>
+                    <input type="button" value="load" onclick="load();"></input>
+                    <input type="button" value="reset" onclick="clearArea();"></input>
 
                 </div>
 

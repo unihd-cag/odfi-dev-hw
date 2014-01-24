@@ -152,13 +152,13 @@ data /package/directories {
                 }
             }
             default {
-		set res ""
-		foreach dir $dirs {
-		  append res " "
-		  append res $dir
-		}
+                set res ""
+                foreach dir $dirs {
+                    append res " "
+                    append res $dir
+            }
                
-                json {
+            json {
                     - result : "$res"
                 }
 
@@ -205,42 +205,40 @@ data /producer/produce {
 
     set implementation {
 
-	set pack [$application currentPackage]
+    set pack [$application currentPackage]
 
         if {![odfi::common::isClass $pack odfi::dev::hw::package::Part]} {
             error "Could not Find Any Selected package to produce a view"
         } else {
 
             set out ""
-	    set view ""
+            set view ""
 
-	    ## Which producer is selected?
-	    if {[regexp {producer=([^&]+)&?} $request(query) -> producer]} {
-	      set producer [::ncgi::decode $producer]
-	      #set producer [split $producer "&"]
-	      #set producer [lindex $producer 0]
-	      set out [::new $producer #auto $pack]
-	    }
-            ## Do we have any rules 
-            if {[regexp {rulesArea=([^&]+)&?} $request(query) -> rules]} {
+            ## Which producer is selected?
+            if {[regexp {producer=([^&]+)&?} $request(query) -> producer]} {
+            set producer [::ncgi::decode $producer]
+            #set producer [split $producer "&"]
+            #set producer [lindex $producer 0]
+            set out [::new $producer #auto $pack]
+        }
+        ## Do we have any rules 
+        if {[regexp {rulesArea=([^&]+)&?} $request(query) -> rules]} {
 
-                set rules [::ncgi::decode $rules]
-		#TODO: Check if rules = saved rules
-		puts "Using rules: $rules"
-                $out defineParameters $rules
-		$application producer $out
-            }
-	    
-	    ##Get selected view
-	    if {[regexp {packageview=([^&]+)&?} $request(query) -> packageview]} {
+            set rules [::ncgi::decode $rules]
+            #TODO: Check if rules = saved rules
+            puts "Using rules: $rules"
+            $out defineParameters $rules
+            $application producer $out
+        }
+        ##Get selected view
+        if {[regexp {packageview=([^&]+)&?} $request(query) -> packageview]} {
 
-                set view $packageview
-		 puts "Showing view: $view"
-            }
-	    $application producer $out
+            set view $packageview
+            puts "Showing view: $view"
+        }
+        $application producer $out
 
-	      #!!!!
-	    return [list "application/svg" [$out produceToString -view $view]]
+            return [list "application/svg" [$out produceToString -view $view]]
         }
 
     }
@@ -264,32 +262,32 @@ data /producer/saveRules {
 
 
     array set request $requestArray
-      if {[regexp {rulesArea=(.+)} $request(query) -> rules]} {
-		set rules [::ncgi::decode $rules]
-		
-		#construct filename:
-		set filename $dir
-		set filename [split $filename "~"]
-		set filename [lindex $filename end]
-		set filename "~$filename"
-		set pName [$pack name]
+    if {[regexp {rulesArea=(.+)} $request(query) -> rules]} {
+        set rules [::ncgi::decode $rules]
+                    
+        #construct filename:
+        set filename $dir
+        set filename [split $filename "~"]
+        set filename [lindex $filename end]
+        set filename "~$filename"
+        set pName [$pack name]
 
-		set pName [split $pName "."]
+        set pName [split $pName "."]
 
-		set pName [lindex $pName 0]
-		append filename $pName
-		append filename ".package.rules"
-		
-		puts "saving Rules as $filename"
+        set pName [lindex $pName 0]
+        append filename $pName
+        append filename ".package.rules"
+                    
+        puts "saving Rules as $filename"
 
-		# open the file for writing
-		set fileId [open $filename "w"]
+        # open the file for writing
+        set fileId [open $filename "w"]
 
-		#write
-		puts -nonewline $fileId $rules
-		close $fileId
+        #write
+        puts -nonewline $fileId $rules
+        close $fileId
 
-            }
+    }
 
   }
 

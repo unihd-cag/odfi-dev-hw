@@ -39,25 +39,25 @@
     var frag = document.createDocumentFragment();
 
     for (var i=1; i<names.length; i++) {
-	var name = names[i];
-	var choiceSelection = document.createElement('input');
-	choiceSelection.setAttribute('type', 'radio');
-	choiceSelection.setAttribute('id', 'producerselection');
-	choiceSelection.setAttribute('name', 'producer');
-	choiceSelection.setAttribute('value', name);
-	if (i == 1) {
-	  choiceSelection.setAttribute('checked','true');
-	}
-	
-	choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
+        var name = names[i];
+        var choiceSelection = document.createElement('input');
+        choiceSelection.setAttribute('type', 'radio');
+        choiceSelection.setAttribute('id', 'producerselection');
+        choiceSelection.setAttribute('name', 'producer');
+        choiceSelection.setAttribute('value', name);
+        if (i == 1) {
+            choiceSelection.setAttribute('checked','true');
+        }
+    
+        choiceSelection.setAttribute('onchange','updateViews(\''+name+'\')');
 
-	
+    
 
-	frag.appendChild(choiceSelection);
-	var label=document.createTextNode(parseProducer(name));
-	frag.appendChild(label);
-	var br=document.createElement("br");
-	frag.appendChild(br);
+        frag.appendChild(choiceSelection);
+        var label=document.createTextNode(parseProducer(name));
+        frag.appendChild(label);
+        var br=document.createElement("br");
+        frag.appendChild(br);
 
     }
     updateViews(names[1]); //initial views
@@ -87,21 +87,21 @@
   }
 
   function updateViews(name) {
-   $.ajax({
-	    url : "/package/data/package/views?producer="+name,
-	    dataType: "json",
-	    type: 'GET'
-	}).done(function(data) {
-	    if (data.result == "No Packages available!") {
-	      addItem("packageview",data.result, data.result);
-	    } else {
-	      var views = data.result.split(" ");
-	      clearMenu("packageview");
-	      for (var i=0; i<views.length; i++) {
-		addItem("packageview",views[i],views[i]);
-	      }
-	  }
-	})
+    $.ajax({
+            url : "/package/data/package/views?producer="+name,
+            dataType: "json",
+            type: 'GET'
+    }).done(function(data) {
+            if (data.result == "No Packages available!") {
+                addItem("packageview",data.result, data.result);
+            } else {
+                var views = data.result.split(" ");
+                clearMenu("packageview");
+                for (var i=0; i<views.length; i++) {
+                addItem("packageview",views[i],views[i]);
+                }
+            }
+    })
   }
 
   function update() {

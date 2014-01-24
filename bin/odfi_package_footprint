@@ -2,7 +2,7 @@
 
 
 package require odfi::tool
-package require odfi::implementation::edid::package
+package require odfi::dev::hw::package
 
 odfi::tool::describe {
 
@@ -28,7 +28,19 @@ An embedded web viewer can be started to view in a browser easily
     - CSV file Format (files with *.csv extension):
 
         First Line: Columns separated by ',' , ex: ,1,2,3,4
-        Next Lines: Line name , values of pins ... , ex: A , VDD, VSS, ...       
+        Next Lines: Line name , values of pins ... , ex: A , VDD, VSS, ...   
+
+    - Tcl Script Format (files with *.part extension):
+
+        odfi::dev::hw::package::part partname {
+            pin {PINNAME @POSITION} {
+                attributefunction
+            }
+        }
+
+        to add an attribute with an attributefunction use either addAttribute NAME VALUE
+        or define your own attributefunction with odfi::dev::hw::package::attributeFunction ::NAME
+        Regular Tcl code is allowed.
 
 - Input definition source
 
@@ -54,6 +66,7 @@ An embedded web viewer can be started to view in a browser easily
 
 
     "
+    argument producer optional type producer description "If defined, specify which producer will be used"
 
     argument file optional type file description "If defined, the source file to read pins definitions"
 
@@ -63,8 +76,36 @@ An embedded web viewer can be started to view in a browser easily
 
     "
 
+    argument producers optional description "Shows available Producers"
+
+    argument rules optional description "Show rules to selected footprint if available"
+
+
 }
 tool parseArguments
+
+#########################################
+## Create Objects to allow them to be detected as availableProducers (must inherit from ::odfi::dev::hw::package::BaseOutputGenerator)
+#########################################
+
+odfi::dev::hw::package::Footprint footprint
+##Create svg to be an availableProducer
+set svg [::new odfi::dev::hw::package::SVGOutput #auto ::footprint]
+
+##Create testoutput to be an availableProducer
+set test [::new odfi::dev::hw::package::TestOutput #auto ::footprint]
+
+#Get available Producers
+set objects [itcl::find objects]
+set aProducers ""
+set prod ""
+foreach obj $objects {
+    if {[$obj info inherit] == "::odfi::dev::hw::package::BaseOutputGenerator"} {
+        set prod $obj
+        lappend aProducers [$obj info class]
+    }
+}
+
 
 ###########################################
 ## Try to Read Foot Print Definition File Provided
@@ -72,33 +113,86 @@ tool parseArguments
 if {$file!=false} {
 
     ## Read File Through embedded TCL
-    ##########
-    set fileContent [odif::closures::embeddedTclFromFileToString $file]
-
+    ##########set fileContent [odif::closures::embeddedTclFromFileToString $file]
+    ##
+    set f [open $file]
+    set fileContent [read $f]
+    close $f
     switch -glob -- [file extension $file] {
 
-        
-        ## CSV File 
-        ##################
         *.csv {
-
-            edid::package::FootPrint footprint
+        ## CSV File
+        ##################
+            #odfi::dev::hw::package::Footprint footprint
             footprint readCSV $fileContent
-
+            #footprint packageInfo
 
         }
 
-        ## Simple List file
-        #######################
-        default {
-            
-            edid::package::FootPrint footprint
-            footprint readInputList $fileContent
+        *.part {
+        ##Tcl Script
+        ############
+            odfi::closures::doClosure $fileContent
+        }
 
+        default {
+        ## Simple List file
+        #######################   
+            #odfi::dev::hw::package::FootPrint footprint
+            footprint readInputList $fileContent
+            #footprint packageInfo
         }
 
     }
 
+    #if the user wants to see the rules:
+    if {$rules!=false} {
+        
+        set p $file
+
+        set f [file tail $p]
+        set lenF [string length $f]
+        set lenD [string length $p]
+        set end [expr $lenD - $lenF]
+        set dir [string range $p 0 [expr $end - 1]]
+      
+        set filename $dir
+        set filename [split $filename "~"]
+        set filename [lindex $filename end]
+        set filename "$filename"
+        set pName $f
+
+        set pName [split $pName "."]
+
+        set pName [lindex $pName 0]
+        
+        append filename $pName
+        append filename ".package.rules"
+
+        if {[file exists $filename]} {
+            set fp [open $filename r]
+            set file_data [read $fp]
+            close $fp
+        } else {
+            set file_data "No Rules saved for this package"
+        }
+        puts "Rules: "
+        puts "$file_data"
+        set rules $file_data
+    }
+
+
+} elseif {$producers!=false} {
+    #Show available producers: List all Classes that inherit from odfi::dev::hw::package::BaseOutputGenerator
+   
+    puts "available Producers: $aProducers"
+} elseif {$web!=false} {
+    #open webapp
+    set file "~/modules-manager/install/dev-hw/tests/package/test_package_viewer_web.tcl"
+    set f [open $file]
+    set fileContent [read $f]
+    close $f
+    odfi::closures::doClosure $fileContent
 
 } else {
 
@@ -138,4 +232,29 @@ if {$file!=false} {
 ## Try to produce output 
 ###########################
 
+#Is an output expected?
+if {$producers!=true} {
+    #check for producer
+    if {$producer!=false} {
+        set prod $producer
+        
+    } else {
+        set i 0
+
+        foreach prod $aProducers {
+            puts "$prod: $i, "
+            incr i
+        }
+        puts -nonewline "Which Producer do you want to use: "
+        flush stdout
+        set i [gets stdin]
+        set prod [lindex $aProducers $i]
+    }
+    set obj [::new $prod #auto ::footprint]
+    #Do we have rules?
+    if {$rules!=false} {
+        $obj defineParameters $rules
+    }
+    puts "[$obj produceToString]"
+}
 
