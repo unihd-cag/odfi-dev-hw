@@ -358,6 +358,7 @@ namespace eval odfi::dev::hw::package {
             foreach n $cName {
                 if {[string index $n 0] == "@"} {
                     set position [string trim $n "@"]
+                    location $position
                 } else {
                     set name $n
                 }
@@ -380,14 +381,33 @@ namespace eval odfi::dev::hw::package {
         ## The X/Y Position is extracted by analysing the location format (Letters for Y and digits for X)
         public method location {loc} {
             set position $loc
-
+            #puts "setting locations as $loc"
             ## Analyse position
             ## Format: AAAAA0000000  Letters giving the row, and numbers giving the column
             #########################
-            set format {([A-Za-z]+)([0-9]+)}
-            regexp $format $position -> row column
+
+            # Check for format
+            string is upper -failindex i $position
+            if { $i == [string length $position] } {
+                #We only have chars
+                set row $position
+                
+                #set column as 0 because none was specified
+                set column 0
+            } elseif { $i == 0 } {
+                #We only have numbers
+                #Set row as A per default
+                set row "A"
+                set column $position
+            } else {
+                #We have chars and then numbers
+                set format {([A-Za-z]+)([0-9]+)}
+                regexp $format $position -> row column
+            }
 
             
+
+            #puts "row column: $row $column"     
             #### Row Y position :
             ####  A new letter is added after the end of following allow letters list:
             #####   - Every new letter gives a +list length offset
@@ -405,12 +425,11 @@ namespace eval odfi::dev::hw::package {
             incr y [expr [lsearch -exact $allowedRowChars $lastChar]]
 
             #puts "** Incremented by [lsearch -exact $allowedRowChars $lastChar]"
-
             ###########
 
             #### Column X position : This is just a number
             set x [expr $column-1]
-
+            #puts "x: $x, y: $y"
         }
 
         public method getPos {} {
