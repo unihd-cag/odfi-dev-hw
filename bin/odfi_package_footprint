@@ -89,6 +89,7 @@ tool parseArguments
 #########################################
 
 odfi::dev::hw::package::Footprint footprint
+
 ##Create svg to be an availableProducer
 set svg [::new odfi::dev::hw::package::SVGOutput #auto ::footprint]
 
@@ -129,10 +130,14 @@ if {$file!=false} {
 
         }
 
+        *.tcl -
         *.part {
         ##Tcl Script
         ############
-            odfi::closures::doClosure $fileContent
+            namespace inscope odfi::dev::hw::package {
+                odfi::closures::doClosure $fileContent
+            }
+            
         }
 
         default {

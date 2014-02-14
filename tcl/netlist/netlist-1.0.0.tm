@@ -193,6 +193,7 @@ namespace eval odfi::dev::hw::netlist {
                     *.sv   -
                     *.vhd  -
                     *.vhdl -
+                    *.xci  -
                     sources {
                         $fFile addSource $line
                     }

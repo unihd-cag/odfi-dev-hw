@@ -1,6 +1,7 @@
 ## This Package provided utility for Electronic Devices packages, like viewer etc...
 package provide odfi::dev::hw::package  1.0.0
 package require odfi::common
+package require odfi::closures 2.1.0
 package require odfi::files
 package require odfi::scenegraph::svg
 
@@ -9,33 +10,136 @@ package require odfi::scenegraph::svg
 
 namespace eval odfi::dev::hw::package {
 
+    odfi::common::resetNamespaceClasses [namespace current]
+
+    namespace import ::odfi::closures::oproc
+
     ## Attribute function
     ######################
     proc attributeFunction {fname} {
     
-            set attributeName [string trimleft $fname ::]
-            
-            ## If name is not categorized using xx.xxx.attributeName, set it to global.attributeName
-            if {![string match *.* $attributeName]} {
-                set attributeName "global.$attributeName"
-            }
+        #::puts "Defining attribute function: $fname"
 
+        ## NS where the function is defined 
+        #set containingNS [uplevel namespace current]
+
+        ## If no explicit namespace on function, pack it left to it 
+       # if {![string match  "::*" $fname ]} {
+       #     set fname ${containingNS}::$fname
+        #}
+        if {![string match  "::*" $fname ]} {
+            set fname ::attr::$fname
+        }
+
+        #::puts "-- Now Defining attribute function: $fname"
+
+        set attributeName [lindex [split [regsub -all {::} [string trimleft $fname ::] _] _] end]
+        
+        ## If name is not categorized using xx.xxx.attributeName, set it to global.attributeName
+        if {![string match *.* $attributeName]} {
+            set attributeName "global.$attributeName"
+        } 
+
+        #set functionNs [lrange [split $fname ::] 0 end-1]
+        regexp {(.+)::[\w_\.-]} $fname -> functionNs
+        #puts "Function ns from $fname -> $functionNs"
+        if {$functionNs!=""} {
+            namespace eval  $functionNs {
+
+            }
+            #namespace eval  $functionNs "set fname $fname" {
+
+                set res "proc $fname  args {
+                    uplevel 1 addAttribute $attributeName \$args
+                }"
+
+                #::puts "--Namespaced: $res"
+                eval $res 
+
+            #} 
+        } else {
             set res "proc $fname args {
-                uplevel 1 addAttribute $attributeName \$args
+            uplevel 1 addAttribute $attributeName \$args
             }"
             uplevel 1 $res 
+        }
+ 
+            
     
     }  
 
     proc part {name closure} {   
-        set $name [::new odfi::dev::hw::package::Part "#auto" $closure]
+        return [::new odfi::dev::hw::package::Part ::$name $closure]
     }
 
 
     ########################
+    ## Attributes
+    #########################
+    itcl::class Attributes {
+
+        ## Attributes List: { {name value?} ... }
+        odfi::common::classField public attributes {}
+
+        ## Attributes 
+        ####################
+
+        public method addAttribute {name args} {
+            if {[llength $args] == 0} {
+                lappend attributes $name
+            } else {
+                lappend attributes [list $name [lindex $args 0]]
+            }
+        
+        }
+
+        public method getAttributes {} {
+            return $attributes
+        }
+
+        ## Searches the attributes list for the exact provided name
+        public method hasAttribute name {
+
+            foreach attr $attributes {
+
+                if {[lindex $attr 0]==$name} {
+                    return true
+                }
+            }
+            return false 
+            #if {[lsearch -exact -index 0 $attributes $name]!=-1} {
+            #    return true 
+            #} else {
+            #    return false
+            #}
+        }
+
+        ## @return the value of an attribute. It must exist (check with #hasAttribute)
+        public method getAttribute name {
+
+            set res ""
+            foreach attr $attributes {
+                if {[lindex $attr 0]==$name} {
+                    set res $attr
+                }
+            }
+
+            #set res [lsearch -inline -exact -index 0 $attributes $name]
+
+            if {[llength $res]==1} {
+                return true 
+            } else {
+                #::puts "Value for $name: $res"
+                return [lindex $res 1]
+            }
+        }
+
+    }
+    ########################
     ## Base Package Definition
     #########################
     itcl::class Part {
+        inherit Attributes
 
         ## Name of the package 
         odfi::common::classField public name "unnamed"
@@ -52,10 +156,14 @@ namespace eval odfi::dev::hw::package {
         odfi::common::classField public height 0
         #public variable height 0
 
+        ## Packaeg type for this part
+        odfi::common::classField public package ""
+
         constructor args {
 
             ## Default 
-            name "$this"
+            name [regsub -all {::} [string trimleft $this ::] _]
+
             #puts "constructing new Part object $name"
             if { "$args" != ""} {
                 odfi::closures::doClosure [join $args]
@@ -68,14 +176,22 @@ namespace eval odfi::dev::hw::package {
 
 
             ## Create Pin
+            ##########
             set pin [::new [namespace parent]::Pin #auto $name $closure]
+
+            ## Check 
+            #############
+            set existingPin [getPinAt [$pin getX] [$pin getY]]
+            if {$existingPin!=""} {
+                odfi::log::error "@[$pin position]: Adding pin [$pin name] failed because pin [$existingPin name] already exists at this location"
+            }
 
             set position [$pin getPos]
 
             ## Add/Replace
             set pinsArray [odfi::list::arrayReplace $pinsArray $position $pin]
 
-            #puts "Adding Pin $name at $position (x:[$pin getX] ,y:[$pin getY])"
+            #::puts "Adding Pin $name at $position (x:[$pin getX] ,y:[$pin getY])"
 
             ## Update Size
             if {[$pin getX]>$width} {
@@ -88,6 +204,7 @@ namespace eval odfi::dev::hw::package {
 
         }
 
+        ## Add a new pin
         public method pin {name closure} {
             addPinDefinition $name $closure
         }
@@ -97,7 +214,33 @@ namespace eval odfi::dev::hw::package {
             return $pinsArray
         }
 
+        ## @return the number of registered pins
+        public method getPinsCount args {
+            return [expr [llength $pinsArray]/2]
+        }
 
+        ## Runs a closure on each pin of this part
+        public method eachPin closure {
+            foreach {loc it} $pinsArray {
+                odfi::closures::doClosure $closure 1
+            }
+        }
+
+        public method getPinAt {x y} {
+
+            set res ""
+            foreach {loc it} $pinsArray {
+                 if {[$it getX]==$x && [$it getY]==$y} {
+                    #puts "Found $it"
+                    set res $it
+                    break
+                }
+            }
+           
+            #puts "Eof search"
+            return $res
+
+        }
 
         ## Read Some Pin Definitions from an input list containing {position name} pairs
         #
@@ -182,12 +325,14 @@ namespace eval odfi::dev::hw::package {
     ## Object for Package Pin
     ##############################
     itcl::class Pin {
+        inherit Attributes
+
 
         ## Name of Pin
         odfi::common::classField public name ""
 
         ## Textual Position
-        public variable position
+        odfi::common::classField public position ""
 
         public variable x  0
 
@@ -197,7 +342,7 @@ namespace eval odfi::dev::hw::package {
 
         public variable column  0
 
-        public variable attributes {}
+        
 
         ## If this is a non existent pin
         odfi::common::classField public nonExistent false
@@ -254,17 +399,17 @@ namespace eval odfi::dev::hw::package {
             ## Offset = number of chars in definition -1 (ignore last) * number of allowed characters until new character is added
             set y [expr ([string length $row]-1)*[llength $allowedRowChars]]
 
-           # puts "** First round y: $y"
+            #puts "** First round y: $y"
 
             set lastChar [string index $row end]
-            incr y [expr [lsearch -exact $allowedRowChars $lastChar] -1]
+            incr y [expr [lsearch -exact $allowedRowChars $lastChar]]
 
             #puts "** Incremented by [lsearch -exact $allowedRowChars $lastChar]"
 
             ###########
 
             #### Column X position : This is just a number
-            set x $column
+            set x [expr $column-1]
 
         }
 
@@ -273,23 +418,12 @@ namespace eval odfi::dev::hw::package {
         }
 
         public method pinInfo {} {
-            puts "name: $name"
-            puts "location: $position"
-            puts "attributes: $attributes"
+            ::puts "name: $name"
+            ::puts "location: $position"
+            ::puts "attributes: $attributes"
         }
 
-        public method addAttribute {name args} {
-            if {[llength $args] <= 1} {
-                lappend attributes "$name $args"
-            } else {
-                lappend attributes "$name [lindex $args 0]"
-            }
-        
-        }
 
-        public method getAttributes {} {
-            return $attributes
-        }
 
         ## @return Integer position in X direction
         public method getX args {
@@ -311,6 +445,8 @@ namespace eval odfi::dev::hw::package {
             return $column
         }
 
+        
+
     }
 
 
@@ -324,7 +460,9 @@ namespace eval odfi::dev::hw::package {
         public variable name ""
 
         ## The Footprint for which we are generating
-        public variable footPrint 
+        odfi::common::classField public footPrint ""
+        odfi::common::classField public part ""
+        
 
         ## The available views
         public variable availableViews "topview bottomview"
@@ -340,26 +478,14 @@ namespace eval odfi::dev::hw::package {
             ## Init
             ###########
             set footPrint $cFootprint
+            set part      $cFootprint
 
             ## Defaults
             #######################
             array set parametersMap {
             }
 
-	    #TODO Get possible producer
-	    #set subclasses [itcl::find classes "::odfi::dev::hw::package::SVGOutput"] 
-	    #puts "subclasses: $subclasses"
 
-            set objects [itcl::find objects]
-
-	    #set subclasses ""
-
-	   # foreach obj $objects {
-		#if {[$obj info inherit] == "::odfi::dev::hw::package::BaseOutputGenerator"} {
-		#  lappend subclasses [$obj info class]
-		#}
-	   # }
-	    #puts "subclasses: $subclasses"
         }
 
         ## Global Parameters Generic Functions
@@ -378,6 +504,7 @@ namespace eval odfi::dev::hw::package {
         public method getName {} {
             return $name
         }
+
         #public method getSubclasses {} {
         #    return $subclasses
         #}
@@ -392,6 +519,13 @@ namespace eval odfi::dev::hw::package {
                            
             } 
             
+        }
+
+        ## Reads a Rules files containing rule pairs
+        public method readParametersFromFile file {
+
+            defineParameters [odfi::common::readFileContent $file]
+
         }
         
         ## Return the value of the parameter for a name matching one pattern
@@ -424,7 +558,8 @@ namespace eval odfi::dev::hw::package {
                if {[regexp $entryPattern "$name,$param"]==1} {
                    
                    #uplevel "set value $value"
-                   #odfi::closures::doClosure $closure 1
+                   #set value $value
+                   odfi::closures::doClosure $closure 1
               
                    
                }      
@@ -561,45 +696,61 @@ namespace eval odfi::dev::hw::package {
                 ## Add a rounded rectangle for all the pins 
                 ## Every width count, add the line name 
                 ########################
-		#TODO addGroup pins {
-                set count 0 
-                foreach {location pin} [$footPrint getPinsArray] {
+                for {set y 0} {$y<[$footPrint height]} {incr y} {
 
-                    if {[expr $count%[$footPrint width]]==0} {
+                    ## Add Row Name from first pin
+                    set firstPin [$part getPinAt 1 $y]
+                    #::puts "Set first pin at: 0,$y -> $firstPin"
+                    text [$firstPin getRow]
 
-                        text [$pin getRow]
-                    }
+                    for {set x 0} {$x<[$footPrint width]} {incr x} {
 
-                    addRect {
+                        ## Add Pins for this line 
+                        set pin [$part getPinAt $x $y]
+                        #::puts "Pin at: $x,$y -> $pin"
+                        if {$pin!=""} {
+                            addRect {
 
-                        width   $pinSize
-                        height  $pinSize
-                        rounded 5
-                        title [$pin name]
+                            width   $pinSize
+                            height  $pinSize
+                            rounded 5
+                            title [$pin name]
 
-                        ## Parameters specific to name based patterns
-                        ##################
+                            ## Parameters specific to name based patterns
+                            ##################
 
-                        ## Color 
-                        #puts "Inside rect with $producer"
-                        color   [$producer getColorForPin $pin white]
+                            ## Color 
+                            #puts "Inside rect with $producer"
+                            color   [$producer getColorForPin $pin white]
 
-                        ## Non Existent/Non Connected are not to be seen
-                        if {[$pin nonExistent]} {
-                            opacity 0.0
-                        }
-                        #border  [$producer getBorderForPin $pin white]
-                        #[$producer getParameterForNameAnd [$pin name] color {
-                        #    color $value
-                        #}]
+                            ## Non Existent/Non Connected are not to be seen
+                            if {[$pin nonExistent]} {
+                                opacity 0.0
+                            }
+                            #border  [$producer getBorderForPin $pin white]
+                            #[$producer getParameterForNameAnd [$pin name] color {
+                            #    color $value
+                            #}]
   
+                            }
+                        } else {
+                            addRect {
+
+                                width   $pinSize
+                                height  $pinSize
+                                rounded 5
+                                title   "NE"
+                                opacity 0.0
+                              
+  
+                            }
+                        }
+                        
                     }
-
-                    incr count
-
-
                 }
-            #}
+
+
+
                 ## Layout as Grid (width+1 columns because of line text column)
                 layout "flowGrid" [list \
                     columns [expr [$footPrint width]+1] \
@@ -607,13 +758,13 @@ namespace eval odfi::dev::hw::package {
 
                 ]
 
-                        #change layout according to view
-                        if {$view == "bottomview"} {
-                            layout "mirrorY" {
-           
-                            }
-                            
-                        }
+                #change layout according to view
+                if {$view == "bottomview"} {
+                    layout "mirrorY" {
+   
+                    }
+                    
+                }
 
 
             }]
@@ -658,3 +809,4 @@ namespace eval odfi::dev::hw::package {
 #################
 source [file dirname [info script]]/svghtmlProducer-1.0.0.tm
 source [file dirname [info script]]/webapp-1.0.0/PackageWebapp.tm
+source [file dirname [info script]]/package-1.0.0-attributes.tcl
