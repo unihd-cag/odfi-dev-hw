@@ -30,7 +30,7 @@ An embedded web viewer can be started to view in a browser easily
         First Line: Columns separated by ',' , ex: ,1,2,3,4
         Next Lines: Line name , values of pins ... , ex: A , VDD, VSS, ...   
 
-    - Tcl Script Format (files with *.part extension):
+    - Tcl Script Format (files with *.part or *part.tcl extension):
 
         odfi::dev::hw::package::part partname {
             pin {PINNAME @POSITION} {
@@ -88,13 +88,13 @@ tool parseArguments
 ## Create Objects to allow them to be detected as availableProducers (must inherit from ::odfi::dev::hw::package::BaseOutputGenerator)
 #########################################
 
-odfi::dev::hw::package::Footprint footprint
+set part [::new odfi::dev::hw::package::Part #auto]
 
 ##Create svg to be an availableProducer
-set svg [::new odfi::dev::hw::package::SVGOutput #auto ::footprint]
+set svg [::new odfi::dev::hw::package::SVGOutput #auto ::part]
 
 ##Create testoutput to be an availableProducer
-set test [::new odfi::dev::hw::package::TestOutput #auto ::footprint]
+set test [::new odfi::dev::hw::package::TestOutput #auto ::part]
 
 #Get available Producers
 set objects [itcl::find objects]
@@ -124,8 +124,7 @@ if {$file!=false} {
         *.csv {
         ## CSV File
         ##################
-            #odfi::dev::hw::package::Footprint footprint
-            footprint readCSV $fileContent
+            $part readCSV $fileContent
             #footprint packageInfo
 
         }
@@ -135,16 +134,34 @@ if {$file!=false} {
         ##Tcl Script
         ############
             namespace inscope odfi::dev::hw::package {
-                odfi::closures::doClosure $fileContent
+                    set part [odfi::closures::doClosure $fileContent]
             }
             
+            #Look for correct cript format:
+            if {$part == ""} {
+                set inf 1
+            } else {
+                set inf [expr {[$part info class] != "::odfi::dev::hw::package::Part"}]
+            }
+            if {$inf} {
+                    puts "Incorrect tcl script format: Must return a part object (maybe the last command is not creating the part object?) -> Exiting"
+                    exit 1
+            }
         }
 
         default {
-        ## Simple List file
-        #######################   
-            #odfi::dev::hw::package::FootPrint footprint
-            footprint readInputList $fileContent
+            ## Simple List file
+            #######################   
+                #odfi::dev::hw::package::FootPrint footprint
+            set pnpairs ""
+            foreach {name pos} $fileContent {
+                #swap name and pos to match readInputList parameters:
+                set nname $pos
+                set pos $name
+                set name $nname
+                lappend pnpairs "$name $pos"
+            }
+            $part readInputList $pnpairs
             #footprint packageInfo
         }
 
@@ -204,7 +221,11 @@ if {$file!=false} {
     ## No File Provided Read Standard Input
     ################################
     odfi::common::logInfo "Reading Standard Input for definition"
-    odfi::common::logInfo "If typing in the list yourself, don't forget to press CTRL+D to send the end of file character when your done"
+    #puts "prod: $producer"
+    if {$producer==false} {
+        error "must specify a producer to use Standard Input as input (use --producer PRODUCER). To Get available Producers use --producers)"
+    }
+    odfi::common::logInfo "If typing in the input yourself, don't forget to press CTRL+D to send the end of file character when you're done"
 
     ## Forward user input to an internal stream for flexibility
     set inputStream [odfi::common::newStringChannel]
@@ -213,22 +234,68 @@ if {$file!=false} {
         puts $inputStream $line
 
     }
-
+    
     ## Exit if empty
     if {[tell $inputStream]==0} {
         odfi::common::logInfo "Empty Input -> Exiting"
         exit 1
     }
-
+    
     ## Parse result using TCL parser
     ##################
-    set inputStream [odfi::closures::embeddedTclStream $inputStream]
+    #set inputStream [odfi::closures::embeddedTclStream $inputStream]
+    #puts "bla: $inputStream"
+    #set input $inputStream
+    flush $inputStream
+    set input [read $inputStream]
+    #all 3:
+    set isCsv [regexp {,?[0-9A-Za-z[\]_^\"]+,.*} $input res]
+    #only script:
+    set isScript [regexp -all {(odfi::dev::hw::package::)?part\s+[^ ]+\s+\{} $input res]
+    #script and list:
+    set isList [regexp {[^ ]+ [^ ]+\n} $input res]
+
+    #puts "isCsv: $isCsv  is Script: $isScript isList: $isList"
 
     ## Create FootPrint Object and fill it with input datas
     ####################
-    edid::package::FootPrint footprint
-    footprint readInputList [read $inputStream]
-
+    #edid::package::FootPrint footprint
+    #footprint readInputList [read $inputStream]
+    
+    if {$isScript} {
+        odfi::common::logInfo "Assuming Standard Input is a tcl script"
+        namespace inscope odfi::dev::hw::package {
+                set part [odfi::closures::doClosure $input]
+        }
+        
+        #Look for correct cript format:
+        if {$part == ""} {
+            set inf 1
+        } else {
+            set inf [expr {[$part info class] != "::odfi::dev::hw::package::Part"}]
+        }
+        if {$inf} {
+                puts "Incorrect tcl script format: Must return a part object (maybe the last command is not creating the part object?) -> Exiting"
+                exit 1
+        }
+    }  elseif {$isList} {
+        odfi::common::logInfo "Assuming Standard Input is a List"
+        set pnpairs ""
+        foreach {name pos} $input {
+            #swap name and pos to match readInputList parameters:
+            set nname $pos
+            set pos $name
+            set name $nname
+            lappend pnpairs "$name $pos"
+        }
+        $part readInputList $pnpairs
+    }  elseif { $isCsv } {
+        odfi::common::logInfo "Assuming Standard Input is a CSV"
+        $part readCSV $input
+    } else {
+        odfi::common::logInfo "No matching pattern found -> exiting"
+        exit 1
+    }
 }
 
 ## Exit if no Footprint definition was found
@@ -252,10 +319,11 @@ if {$producers!=true} {
         }
         puts -nonewline "Which Producer do you want to use: "
         flush stdout
-        set i [gets stdin]
-        set prod [lindex $aProducers $i]
+        set in [gets stdin]
+        puts "in: $in"
+        set prod [lindex $aProducers $in]
     }
-    set obj [::new $prod #auto ::footprint]
+    set obj [::new $prod #auto $part]
     #Do we have rules?
     if {$rules!=false} {
         $obj defineParameters $rules
