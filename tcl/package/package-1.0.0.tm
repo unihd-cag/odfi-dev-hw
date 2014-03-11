@@ -33,7 +33,7 @@ namespace eval odfi::dev::hw::package {
 
         #::puts "-- Now Defining attribute function: $fname"
 
-        set attributeName [lindex [split [regsub -all {::} [string trimleft $fname ::] _] _] end]
+        set attributeName [lindex [split [regsub -all {::} [string trimleft $fname ::] %] %] end]
         
         ## If name is not categorized using xx.xxx.attributeName, set it to global.attributeName
         if {![string match *.* $attributeName]} {
@@ -86,7 +86,7 @@ namespace eval odfi::dev::hw::package {
 
         public method addAttribute {name args} {
             if {[llength $args] == 0} {
-                lappend attributes $name
+                lappend attributes [list $name]
             } else {
                 lappend attributes [list $name [lindex $args 0]]
             }
@@ -132,6 +132,14 @@ namespace eval odfi::dev::hw::package {
                 #::puts "Value for $name: $res"
                 return [lindex $res 1]
             }
+        }
+
+        public method eachAttribute cl {
+
+            foreach attribute $attributes {
+                odfi::closures::doClosure $cl 1
+            }
+
         }
 
     }

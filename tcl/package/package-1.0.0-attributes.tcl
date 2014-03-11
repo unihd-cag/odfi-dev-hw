@@ -9,4 +9,7 @@ namespace eval odfi::dev::hw::package {
     attributeFunction ::attr::power
     attributeFunction ::attr::bidirectional
 
+
+    attributeFunction ::attr::internal_pull_up
+    attributeFunction ::attr::internal_pull_down
 }
