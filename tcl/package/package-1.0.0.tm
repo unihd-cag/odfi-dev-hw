@@ -181,13 +181,10 @@ namespace eval odfi::dev::hw::package {
         ## Add a pin definition, and updates size of array
         public method addPinDefinition {name closure} {
 
-
-
             ## Create Pin
             ##########
             set pin [::new [namespace parent]::Pin #auto $name $closure]
-
-            ## Check 
+            ## Check
             #############
             set existingPin [getPinAt [$pin getX] [$pin getY]]
             if {$existingPin!=""} {
@@ -257,11 +254,11 @@ namespace eval odfi::dev::hw::package {
             foreach el $list  {
         
                 set name [lindex $el 1]
-                set position [lindex $el 0]
-                puts "pos: $position  name: $name"
+                set pos [lindex $el 0]
+                puts "pos: $pos name: $name"
                 #addPinDefinition $position $name
                 pin $name {
-                    location $position
+                    location $pos
                 }
             }
 
@@ -379,9 +376,8 @@ namespace eval odfi::dev::hw::package {
                 nonExistent true
                 name "NE"
             }
-
+            #puts "this is the closure: $closure"
             odfi::closures::doClosure $closure
-            
 
         }
 
@@ -395,23 +391,15 @@ namespace eval odfi::dev::hw::package {
             #########################
 
             # Check for format
-            string is upper -failindex i $position
-            if { $i == [string length $position] } {
-                #We only have chars
-                set row $position
-                
-                #set column as 0 because none was specified
-                set column 0
-            } elseif { $i == 0 } {
-                #We only have numbers
-                #Set row as A per default
-                set row "A"
-                set column $position
-            } else {
-                #We have chars and then numbers
-                set format {([A-Za-z]+)([0-9]+)}
-                regexp $format $position -> row column
+
+            set format {([A-Za-z]+)?([0-9]+)}
+            if {![regexp $format $position -> row column]} {
+                error "wrong format for pin location: $loc"
             }
+            if {$row == ""} {
+                set row "A"
+            }
+           
 
             
 
@@ -719,7 +707,7 @@ namespace eval odfi::dev::hw::package {
                         #height $pinSize
                     }
                 }
-
+                 
                 ## Add a rounded rectangle for all the pins 
                 ## Every width count, add the line name 
                 ########################
@@ -727,8 +715,13 @@ namespace eval odfi::dev::hw::package {
 
                     ## Add Row Name from first pin
                     set firstPin [$part getPinAt 1 $y]
+                    if {$firstPin==""} {
+                        text "X"
+                    } else {
+                        text [$firstPin getRow]
+                    }
                     #::puts "Set first pin at: 0,$y -> $firstPin"
-                    text [$firstPin getRow]
+                   # text [$firstPin getRow]
 
                     for {set x 0} {$x<[$footPrint width]} {incr x} {
 
