@@ -49,13 +49,13 @@ package require odfi::dev::hw::package 1.0.0
 
 # User attribute definition
 ##############
-odfi::dev::hw::package::attributeFunction ::output
-odfi::dev::hw::package::attributeFunction ::differential
-odfi::dev::hw::package::attributeFunction ::input
-odfi::dev::hw::package::attributeFunction ::group
-odfi::dev::hw::package::attributeFunction ::reference_voltage
-odfi::dev::hw::package::attributeFunction ::termination_voltage
-odfi::dev::hw::package::attributeFunction ::power
+#odfi::dev::hw::package::attributeFunction ::output
+#odfi::dev::hw::package::attributeFunction ::differential
+#odfi::dev::hw::package::attributeFunction ::input
+#odfi::dev::hw::package::attributeFunction ::group
+#odfi::dev::hw::package::attributeFunction ::reference_voltage
+#odfi::dev::hw::package::attributeFunction ::termination_voltage
+#odfi::dev::hw::package::attributeFunction ::power
 
 #test:
 ###########
