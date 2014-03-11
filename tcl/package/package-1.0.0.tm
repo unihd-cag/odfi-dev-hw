@@ -247,7 +247,7 @@ namespace eval odfi::dev::hw::package {
         
                 set name [lindex $el 1]
                 set pos [lindex $el 0]
-                puts "pos: $pos name: $name"
+                #puts "pos: $pos name: $name"
                 #addPinDefinition $position $name
                 pin $name {
                     location $pos
