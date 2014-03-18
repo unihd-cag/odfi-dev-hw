@@ -96,6 +96,8 @@ set svg [::new odfi::dev::hw::package::SVGOutput #auto ::part]
 ##Create testoutput to be an availableProducer
 set test [::new odfi::dev::hw::package::TestOutput #auto ::part]
 
+set testOut [::new odfi::dev::hw::package::DMLOutput #auto ::part]
+
 #Get available Producers
 set objects [itcl::find objects]
 set aProducers ""
@@ -320,7 +322,7 @@ if {$producers!=true} {
         puts -nonewline "Which Producer do you want to use: "
         flush stdout
         set in [gets stdin]
-        puts "in: $in"
+        #puts "in: $in"
         set prod [lindex $aProducers $in]
     }
     set obj [::new $prod #auto $part]
@@ -329,5 +331,6 @@ if {$producers!=true} {
         $obj defineParameters $rules
     }
     puts "[$obj produceToString]"
+    
 }
 

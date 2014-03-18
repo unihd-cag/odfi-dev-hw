@@ -180,17 +180,18 @@ namespace eval odfi::dev::hw::package {
 
         ## Add a pin definition, and updates size of array
         public method addPinDefinition {name closure} {
-
+            
             ## Create Pin
             ##########
             set pin [::new [namespace parent]::Pin #auto $name $closure]
+            
             ## Check
             #############
             set existingPin [getPinAt [$pin getX] [$pin getY]]
             if {$existingPin!=""} {
                 odfi::log::error "@[$pin position]: Adding pin [$pin name] failed because pin [$existingPin name] already exists at this location"
             }
-
+            
             set position [$pin getPos]
 
             ## Add/Replace
@@ -206,7 +207,7 @@ namespace eval odfi::dev::hw::package {
             if {[$pin getY]>$height} {
                 set height [$pin getY]
             }
-
+#1 ?
         }
 
         ## Add a new pin
@@ -245,6 +246,62 @@ namespace eval odfi::dev::hw::package {
             #puts "Eof search"
             return $res
 
+        }
+        
+        #look for a certain pin wich name contains pinName (not case sensitive) in a field of a given size (default: 1) around a given pin
+        #TODO
+        public method search {pin pinName args} {
+            set x [$pin getX]
+            set y [$pin getY]
+
+            #foreach nX "[expr $x - 1] $x [expr $x + 1]" {
+            #    foreach nY "[expr $y - 1] $y [expr $y + 1]" {
+            #        puts "looking at $nX $nY"
+            #        set nPin [getPinAt $nX $nY]
+            #        if {$nPin != ""} {
+            #            if { [$nPin name] == $pinName } {
+            #                puts "found pin $pinName at [$nPin getPos]"
+            #            }
+            #       }
+            #   }
+            #}
+            if {$args == ""} {
+                #search range
+                set range 1
+            } elseif { $args < 1} {
+                set range 1
+            } else {
+                set range $args
+            }
+
+            set i 1
+            set xValues "$x"
+            set yValues "$y"
+            while {$i <= $range} {
+                append xValues " "
+                append xValues "[expr $x - $i] [expr $x + $i]"
+
+                append yValues " "
+                append yValues "[expr $y - $i] [expr $y + $i]"
+
+                incr i
+            }
+            set res ""
+            foreach nX $xValues {
+                foreach nY $yValues {
+                    #puts "looking at $nX $nY"
+                    set nPin [getPinAt $nX $nY]
+                    if {$nPin != ""} {
+                        #if the current pin contains $pinName:
+                        if { [string match -nocase *$pinName* [$nPin name]]} {
+                            #puts "found pin [$nPin name] at [$nPin getPos]"
+                            append res $nPin
+                            append res " "
+                        }
+                    }
+                }
+            }
+        return $res
         }
 
         ## Read Some Pin Definitions from an input list containing {position name} pairs
@@ -643,6 +700,213 @@ namespace eval odfi::dev::hw::package {
 	}
     }
 
+    #########################
+    ## DML Output
+    #########################
+    itcl::class DMLOutput {
+        inherit BaseOutputGenerator
+
+        public variable name "DMLOutput"
+
+        public variable availableViews "DML Code"
+
+        #The generated Code:
+        public variable dml ""
+
+
+        constructor cFootprint {BaseOutputGenerator::constructor $cFootprint} {
+
+        }
+        
+        private method addSpaces {s} {
+            set res ""
+            set i 0
+            while {$i < $s} {
+                append res "    "
+                incr i
+            }
+            return $res
+        }
+
+        private method addIbis {spaces part} {
+            set res "[addSpaces $spaces](\"IbisPinMap\"\n"
+
+            $part eachPin {
+                #pin name:
+                append res "[addSpaces [expr {$spaces + 1}]](\"[$it name]\"\n"
+
+                set searchRadius [getParameterForName [$it name] searchRadius]
+                
+                if {$searchRadius == ""} {
+                    set searchRadius 1
+                } elseif {![string is integer -strict $searchRadius]} {
+                    set searchRadius 1
+                }
+                
+                #Searchfor ground and power nearby
+                
+                set grnd ""
+                append grnd [$part search $it "GND" $searchRadius]
+                append grnd " "
+                append grnd [$part search $it "VSS" $searchRadius]
+
+                set power  ""
+                append power [$part search $it "VDD" $searchRadius]
+                append power " "
+                append power [$part search $it "VCC" $searchRadius]
+
+                #signal,signal_model,power_bus,ground_bus
+
+                if {[string match -nocase *GND* [$it name]] || [string match -nocase *VSS* [$it name]] || [string match -nocase *VDD* [$it name]] || [string match -nocase *VSS* [$it name]]} {
+                    append res "[addSpaces [expr {$spaces + 2}]](\"bus\" \"[$it name]\")\n"
+                } else {
+
+                    #see if multiple pins found are different
+                    set pow [lindex $power 0]
+                    foreach p $power {
+                        if {[$p name] != [$pow name]} {
+                            puts "warning! Found different power pins [$p name] and [$pow name] around pin [$it name]."
+                        }
+                    }
+                    set power $pow
+
+                    set grou [lindex $grnd 0]
+                    foreach g $grnd {
+                        if {[$grou name] != [$g name]} {
+                            puts "warning! Found different power pins [$g name] and [$grou name] around pin [$it name]."
+                        }
+                    }
+                    set grnd $grou
+
+                    if {$power == ""} {
+                        set power " "
+                    } else {
+                        set power [$power name]
+                    }
+                    if {$grnd == ""} {
+                        set grnd " "
+                    } else {
+                        set grnd [$grnd name]
+                    }
+                    append res "[addSpaces [expr {$spaces + 2}]](\"signal\" \"[$it name]\")\n"
+                    append res "[addSpaces [expr {$spaces + 2}]](\"power_bus\" \"$power\")\n"
+                    #append res "[addSpaces [expr {$spaces + 2}]](\"power_pin\" \"$power\")\n"
+                    append res "[addSpaces [expr {$spaces + 2}]](\"ground_bus\" \"$grnd\")\n"
+                    #append res "[addSpaces [expr {$spaces + 2}]](\"ground_pin\" \"$power\")\n"
+                }
+                append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \" \")\n"
+                append res "[addSpaces [expr {$spaces + 1}]])\n"
+            }
+            append res "[addSpaces $spaces])\n"
+            return $res
+        }
+
+        private method addDiffPairs {spaces part} {
+            set res "[addSpaces $spaces](\"DiffPair\"\n"
+            #set usedPins ""
+            $part eachPin {
+                if {[$it hasAttribute "global.differential"]} {
+
+                    #the pin:
+                    set name [$it name]
+                    set length [string length $name]
+
+                    #its pair:
+                    set invPin [$it getAttribute "global.differential"]
+                
+                    #check if inverse pin exists:
+                    set exists 0
+                    foreach {rowColumn pinObject} [$part getPinsArray] {
+                    
+                        set exists [expr $exists || [string match [$pinObject name] $invPin]]
+                        if {[$pinObject name] == $invPin} {
+                            set exists 1
+                            set inversePinObject $pinObject
+                        }
+                    }
+                    
+                    if {!$exists} {
+                        puts "error: inverse pin $invPin of $name does not exist"
+                        exit 1
+                    }
+
+                    #See if name ends in "_p" for positive pin of diffpair
+                    if {[string last "_p" $name $length] == [expr $length - 2]} {
+
+                            #diffpait of this must end in "_n":
+
+                            set length [string length $invPin]
+                            if {[string last "_n" $invPin $length] != [expr $length - 2]} {
+                                puts "inverse pin for $name is $invPin but does not end in \"_n\""
+                                exit 1
+                            }
+
+                            #pin name:
+                            append res "[addSpaces [expr {$spaces + 1}]](\"[$it name]\"\n"
+                            #inverse pin:
+                            append res "[addSpaces [expr {$spaces + 2}]](InversePin \"[$it getAttribute global.differential]\")\n"
+                            #logic thresholds:
+                            append res "[addSpaces [expr {$spaces + 2}]](LogicThresholds\n"
+                            #input
+                            append res "[addSpaces [expr {$spaces + 3}]](Input\n"
+                            append res "[addSpaces [expr {$spaces + 4}]](High\n"
+                            append res "[addSpaces [expr {$spaces + 5}]](typical \"0m\") )\n"
+                            append res "[addSpaces [expr {$spaces + 4}]](Low\n"
+                            append res "[addSpaces [expr {$spaces + 5}]](typical \"0m\") ) )\n"
+                            #output
+                            append res "[addSpaces [expr {$spaces + 3}]](Output\n"
+                            append res "[addSpaces [expr {$spaces + 4}]](High\n"
+                            append res "[addSpaces [expr {$spaces + 5}]](typical \"0m\") )\n"
+                            append res "[addSpaces [expr {$spaces + 4}]](Low\n"
+                            append res "[addSpaces [expr {$spaces + 5}]](typical \"0m\") ) )\n"
+
+                            append res "[addSpaces [expr {$spaces + 2}]])\n"
+
+                            #launchdelay:
+                            set delayValue 0
+                            if {[$it hasAttribute "global.differential_delay"] && [$inversePinObject hasAttribute "global.differential_delay"]} {
+                                if {[$it getAttribute "global.differential_delay"] != [$inversePinObject getAttribute "global.differential_delay"]} {
+                                    puts "error: primary pin $name and inverse pin $invPin have different values for attribute differential_delay!"
+                                    exit 1
+                                }
+                                set delayValue [$it getAttribute "global.differential_delay"]
+                            } elseif {[$it hasAttribute "global.differential_delay"]} {
+                                set delayValue [$it getAttribute "global.differential_delay"]
+                            } elseif {[$inversePinObject hasAttribute "global.differential_delay"]} {
+                                set delayValue [$inversePinObject getAttribute "global.differential_delay"]
+                            }
+                            set delayValue "$delayValue"
+
+                            append delayValue "n"
+
+                            append res "[addSpaces [expr {$spaces + 2}]](LaunchDelay\n"
+                            append res "[addSpaces [expr {$spaces + 3}]](typical \"$delayValue\") )\n"
+
+                            append res "[addSpaces [expr {$spaces + 1}]])\n"
+
+                            #append usedPins "[$it getAttribute global.differential]"
+                            #append usedPins " "
+                        
+                    } elseif {[string last "_n" $name $length] != [expr $length - 2]} {
+                        puts "Warning: pin $name hast attribute differential but does not end in \"_p\" or \"_n\""
+                    }
+                }
+            }
+            append res "[addSpaces $spaces])\n"
+            return $res
+        }
+
+        ##create DML Code to the part
+        public method produceToString args {
+            
+            set dml "(\"[$part name].dml\"\n[addSpaces 1](Notes \"This model is generated from a part file\")\n[addSpaces 1](PackagedDevice\n[addSpaces 2](\"[$part name]\"\n"
+            append dml "[addIbis 3 $part]"
+            append dml "[addDiffPairs 3 $part]"
+            append dml ") ) )"
+
+            return $dml
+        }
+    }
 
     #########################
     ## SVG Output 
