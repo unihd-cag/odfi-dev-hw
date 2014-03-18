@@ -773,7 +773,7 @@ namespace eval odfi::dev::hw::package {
                     set grou [lindex $grnd 0]
                     foreach g $grnd {
                         if {[$grou name] != [$g name]} {
-                            puts "warning! Found different power pins [$g name] and [$grou name] around pin [$it name]."
+                            puts "warning! Found different ground pins [$g name] and [$grou name] around pin [$it name]."
                         }
                     }
                     set grnd $grou
