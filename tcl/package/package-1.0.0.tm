@@ -733,7 +733,8 @@ namespace eval odfi::dev::hw::package {
 
             $part eachPin {
                 #pin name:
-                append res "[addSpaces [expr {$spaces + 1}]](\"[$it name]\"\n"
+                set name [string toupper [$it name]]
+                append res "[addSpaces [expr {$spaces + 1}]](\"[$it getPos]\"\n"
 
                 set searchRadius [getParameterForName [$it name] searchRadius]
                 
@@ -757,8 +758,15 @@ namespace eval odfi::dev::hw::package {
 
                 #signal,signal_model,power_bus,ground_bus
 
-                if {[string match -nocase *GND* [$it name]] || [string match -nocase *VSS* [$it name]] || [string match -nocase *VDD* [$it name]] || [string match -nocase *VSS* [$it name]]} {
-                    append res "[addSpaces [expr {$spaces + 2}]](\"bus\" \"[$it name]\")\n"
+                if {[string match -nocase *GND* [$it name]] || [string match -nocase *VSS* [$it name]] || [string match -nocase *VDD* [$it name]] || [string match -nocase *VCC* [$it name]]} {
+                    append res "[addSpaces [expr {$spaces + 2}]](\"bus\" \"$name\")\n"
+                    if {[$it hasAttribute "global.signal_model"]} {
+                        append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \"[$it getAttribute global.signal_model]\")\n"
+                    } elseif {[string match -nocase *GND* [$it name]] || [string match -nocase *VSS* [$it name]]} {
+                        append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \"GND\")\n"
+                    } elseif {[string match -nocase *VDD* [$it name]] || [string match -nocase *VCC* [$it name]]} {
+                        append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \"POWER\")\n"
+                    }
                 } else {
 
                     #see if multiple pins found are different
@@ -788,13 +796,38 @@ namespace eval odfi::dev::hw::package {
                     } else {
                         set grnd [$grnd name]
                     }
-                    append res "[addSpaces [expr {$spaces + 2}]](\"signal\" \"[$it name]\")\n"
+                    append res "[addSpaces [expr {$spaces + 2}]](\"signal\" \"$name\")\n"
                     append res "[addSpaces [expr {$spaces + 2}]](\"power_bus\" \"$power\")\n"
                     #append res "[addSpaces [expr {$spaces + 2}]](\"power_pin\" \"$power\")\n"
                     append res "[addSpaces [expr {$spaces + 2}]](\"ground_bus\" \"$grnd\")\n"
                     #append res "[addSpaces [expr {$spaces + 2}]](\"ground_pin\" \"$power\")\n"
+                
+
+                    if {[$it hasAttribute "global.signal_model"]} {
+                        set signalmodel [$it getAttribute global.signal_model]
+                    } elseif {[$it hasAttribute "global.input"]} {
+                        set signalmodel "CDSDefaultInput"
+                    } elseif {[$it hasAttribute "global.output"]} {
+                        set signalmodel "CDSDefaultOutput"
+                    } else {
+                        set signalmodel " "
+                        puts "warning pin [$it name] has no attributes input or output and also has no signal_model specified!"
+                    }
+                    append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \"$signalmodel\")\n"
                 }
-                append res "[addSpaces [expr {$spaces + 2}]](\"signal_model\" \" \")\n"
+            
+
+                if {![$it hasAttribute "global.power"] && [$it hasAttribute global.buffer_delay_rise] && [$it hasAttribute global.buffer_delay_fall]} {
+                    append res "[addSpaces [expr {$spaces + 2}]](BufferDelay\n"
+                    append res "[addSpaces [expr {$spaces + 3}]](\"$signalmodel\"\n"
+                    append res "[addSpaces [expr {$spaces + 4}]](Rise\n"
+                    append res "[addSpaces [expr {$spaces + 5}]](typical \"[$it getAttribute global.buffer_delay_rise]\") )\n"
+                    append res "[addSpaces [expr {$spaces + 4}]](Fall\n"
+                    append res "[addSpaces [expr {$spaces + 5}]](typical \"[$it getAttribute global.buffer_delay_fall]\") ) ) )\n"
+                } elseif {[$it hasAttribute global.buffer_delay_rise] || [$it hasAttribute global.buffer_delay_fall]} {
+                    puts "warning! pin [$it name] has only one attribute of buffer_delay_fall and buffer_delay_rise but needs both."
+                }
+            
                 append res "[addSpaces [expr {$spaces + 1}]])\n"
             }
             append res "[addSpaces $spaces])\n"
@@ -808,43 +841,43 @@ namespace eval odfi::dev::hw::package {
                 if {[$it hasAttribute "global.differential"]} {
 
                     #the pin:
-                    set name [$it name]
+                    set name [string toupper [$it name]]
                     set length [string length $name]
 
                     #its pair:
-                    set invPin [$it getAttribute "global.differential"]
+                    set invPin [string toupper [$it getAttribute "global.differential"]]
                 
                     #check if inverse pin exists:
                     set exists 0
                     foreach {rowColumn pinObject} [$part getPinsArray] {
                     
-                        set exists [expr $exists || [string match [$pinObject name] $invPin]]
-                        if {[$pinObject name] == $invPin} {
+                        set exists [expr $exists || [string match [string toupper [$pinObject name]] $invPin]]
+                        if {[string toupper [$pinObject name]] == $invPin} {
                             set exists 1
                             set inversePinObject $pinObject
                         }
                     }
                     
                     if {!$exists} {
-                        puts "error: inverse pin $invPin of $name does not exist"
+                        error "inverse pin $invPin of $name does not exist"
                         exit 1
                     }
 
                     #See if name ends in "_p" for positive pin of diffpair
-                    if {[string last "_p" $name $length] == [expr $length - 2]} {
+                    if {[string last "_P" $name $length] == [expr $length - 2]} {
 
-                            #diffpait of this must end in "_n":
+                            #diffpair of this must end in "_n":
 
                             set length [string length $invPin]
-                            if {[string last "_n" $invPin $length] != [expr $length - 2]} {
+                            if {[string last "_N" $invPin $length] != [expr $length - 2]} {
                                 puts "inverse pin for $name is $invPin but does not end in \"_n\""
                                 exit 1
                             }
 
                             #pin name:
-                            append res "[addSpaces [expr {$spaces + 1}]](\"[$it name]\"\n"
+                            append res "[addSpaces [expr {$spaces + 1}]](\"[$it getPos]\"\n"
                             #inverse pin:
-                            append res "[addSpaces [expr {$spaces + 2}]](InversePin \"[$it getAttribute global.differential]\")\n"
+                            append res "[addSpaces [expr {$spaces + 2}]](InversePin \"[$inversePinObject getPos]\")\n"
                             #logic thresholds:
                             append res "[addSpaces [expr {$spaces + 2}]](LogicThresholds\n"
                             #input
@@ -887,7 +920,7 @@ namespace eval odfi::dev::hw::package {
                             #append usedPins "[$it getAttribute global.differential]"
                             #append usedPins " "
                         
-                    } elseif {[string last "_n" $name $length] != [expr $length - 2]} {
+                    } elseif {[string last "_N" $name $length] != [expr $length - 2]} {
                         puts "Warning: pin $name hast attribute differential but does not end in \"_p\" or \"_n\""
                     }
                 }
