@@ -1,7 +1,7 @@
 #!/usr/bin/env tclsh8.5
 
 
-package require odfi::tool
+package require odfi::tool 1.0.0
 package require odfi::dev::hw::package
 
 odfi::tool::describe {
@@ -19,8 +19,8 @@ An embedded web viewer can be started to view in a browser easily
         Each Line of the input file defines one PIN POSITION pair, like this:
 
         ...
-        CLK A1
-        GPIO0 B2
+        A1 CLK
+        B2 GPIO0
         ...
 
         The Order of the definitions is irrelevant, the tool sorts everything correctly
@@ -51,22 +51,22 @@ An embedded web viewer can be started to view in a browser easily
 
     - Using an input file:
 
-        odfi_package_footprint < /path/to/input_definition/file
+        odfi_package < /path/to/input_definition/file
 
     - By Piping
 
-        wonderful_pin_list_output_tool | odfi_package_footprint
+        wonderful_pin_list_output_tool | odfi_package
 
     - By Hand typing
 
-        odfi_package_footprint
+        odfi_package
 
         Then enter the input (copy paste will work)
         Press CTRL + D to produce the End of File character
 
 
     "
-    argument producer optional type producer description "If defined, specify which producer will be used"
+    argument producer optional type string description "If defined, specify which producer will be used"
 
     argument file optional type file description "If defined, the source file to read pins definitions"
 
@@ -88,27 +88,18 @@ tool parseArguments
 ## Create Objects to allow them to be detected as availableProducers (must inherit from ::odfi::dev::hw::package::BaseOutputGenerator)
 #########################################
 
-set part [::new odfi::dev::hw::package::Part #auto]
+#set part [::new odfi::dev::hw::package::Part #auto]
 
 ##Create svg to be an availableProducer
 set svg [::new odfi::dev::hw::package::SVGOutput #auto ::part]
-
-##Create testoutput to be an availableProducer
-set test [::new odfi::dev::hw::package::TestOutput #auto ::part]
-
-set testOut [::new odfi::dev::hw::package::DMLOutput #auto ::part]
+set dml [::new odfi::dev::hw::package::DMLOutput #auto ::part]
 
 #Get available Producers
-set objects [itcl::find objects]
-set aProducers ""
-set prod ""
-foreach obj $objects {
-    if {[$obj info inherit] == "::odfi::dev::hw::package::BaseOutputGenerator"} {
-        set prod $obj
-        lappend aProducers [$obj info class]
-    }
-}
+set aProducers [itcl::find objects -isa ::odfi::dev::hw::package::BaseOutputGenerator]
 
+
+set part ""
+set rulesFile ""
 
 ###########################################
 ## Try to Read Foot Print Definition File Provided
@@ -124,22 +115,26 @@ if {$file!=false} {
     switch -glob -- [file extension $file] {
 
         *.csv {
-        ## CSV File
-        ##################
+
+            ## CSV File
+            ##################
+            set part [::new odfi::dev::hw::package::Part #auto]
             $part readCSV $fileContent
             #footprint packageInfo
 
         }
 
         *.tcl -
+        *.part.tcl -
         *.part {
-        ##Tcl Script
-        ############
+
+            ##Tcl Script
+            ############
             namespace inscope odfi::dev::hw::package {
-                    set part [odfi::closures::doClosure $fileContent]
+                set part [odfi::closures::doClosure $fileContent]
             }
             
-            #Look for correct cript format:
+            #Look for correct script format:
             if {$part == ""} {
                 set inf 1
             } else {
@@ -152,19 +147,12 @@ if {$file!=false} {
         }
 
         default {
+
             ## Simple List file
             #######################   
-                #odfi::dev::hw::package::FootPrint footprint
-            set pnpairs ""
-            foreach {name pos} $fileContent {
-                #swap name and pos to match readInputList parameters:
-                set nname $pos
-                set pos $name
-                set name $nname
-                lappend pnpairs "$name $pos"
-            }
-            $part readInputList $pnpairs
-            #footprint packageInfo
+            set part [::new odfi::dev::hw::package::Part #auto]
+            $part readInputList $fileContent
+            
         }
 
     }
@@ -172,37 +160,12 @@ if {$file!=false} {
     #if the user wants to see the rules:
     if {$rules!=false} {
         
-        set p $file
-
-        set f [file tail $p]
-        set lenF [string length $f]
-        set lenD [string length $p]
-        set end [expr $lenD - $lenF]
-        set dir [string range $p 0 [expr $end - 1]]
-      
-        set filename $dir
-        set filename [split $filename "~"]
-        set filename [lindex $filename end]
-        set filename "$filename"
-        set pName $f
-
-        set pName [split $pName "."]
-
-        set pName [lindex $pName 0]
-        
-        append filename $pName
-        append filename ".package.rules"
-
-        if {[file exists $filename]} {
-            set fp [open $filename r]
-            set file_data [read $fp]
-            close $fp
-        } else {
-            set file_data "No Rules saved for this package"
+        ## Try file name . rules 
+        ###########
+        if {[file exists [file normalize $file].rules]} {
+            set rulesFile [file normalize $file].rules
         }
-        puts "Rules: "
-        puts "$file_data"
-        set rules $file_data
+       
     }
 
 
@@ -210,6 +173,7 @@ if {$file!=false} {
     #Show available producers: List all Classes that inherit from odfi::dev::hw::package::BaseOutputGenerator
    
     puts "available Producers: $aProducers"
+
 } elseif {$web!=false} {
     #open webapp
     set file "~/modules-manager/install/dev-hw/tests/package/test_package_viewer_web.tcl"
@@ -281,19 +245,17 @@ if {$file!=false} {
                 exit 1
         }
     }  elseif {$isList} {
+
         odfi::common::logInfo "Assuming Standard Input is a List"
-        set pnpairs ""
-        foreach {name pos} $input {
-            #swap name and pos to match readInputList parameters:
-            set nname $pos
-            set pos $name
-            set name $nname
-            lappend pnpairs "$name $pos"
-        }
+        set part [::new odfi::dev::hw::package::Part #auto]
         $part readInputList $pnpairs
+
     }  elseif { $isCsv } {
+
         odfi::common::logInfo "Assuming Standard Input is a CSV"
+        set part [::new odfi::dev::hw::package::Part #auto]
         $part readCSV $input
+
     } else {
         odfi::common::logInfo "No matching pattern found -> exiting"
         exit 1
@@ -306,31 +268,65 @@ if {$file!=false} {
 ## Try to produce output 
 ###########################
 
-#Is an output expected?
-if {$producers!=true} {
-    #check for producer
-    if {$producer!=false} {
-        set prod $producer
-        
-    } else {
-        set i 0
+## Producer Selection
+#########################
+set selectedProducer ""
 
-        foreach prod $aProducers {
-            puts "$prod: $i, "
-            incr i
+## From Command line
+if {$producer!=false} {
+
+    ## Search 
+    set found false 
+    foreach p $aProducers {
+        if {[$p getName] == $producer} {
+            set found $p
         }
-        puts -nonewline "Which Producer do you want to use: "
-        flush stdout
-        set in [gets stdin]
-        #puts "in: $in"
-        set prod [lindex $aProducers $in]
     }
-    set obj [::new $prod #auto $part]
-    #Do we have rules?
-    if {$rules!=false} {
-        $obj defineParameters $rules
+
+    ## Check 
+    if {$found!=false} {
+        set selectedProducer [$found  info class]
+    } else {
+        odfi::log::warning "No available producer matched user requested name $producer"
     }
-    puts "[$obj produceToString]"
-    
+
 }
 
+## If no producer has been selected so far -> 
+if {$selectedProducer==""} {
+
+    ## Selection Offer
+    ###########
+    set i 0
+    foreach prod $aProducers {
+        puts "\[$i\] [$prod getName]"
+        incr i
+    }
+
+    ## Read From user 
+    #####################
+    puts -nonewline "Which Producer do you want to use: "
+    flush stdout
+    set in [gets stdin]
+    #puts "in: $in"
+    set prod [[lindex $aProducers $in] info class]
+
+}
+
+## Create from Class Name 
+#################
+set obj [::new $selectedProducer #auto $part]
+
+# Do we have rules?
+if {$rules!=false && $rulesFile!=""} {
+    $obj readParametersFromFile $rulesFile
+}
+
+## Run 
+
+puts "[$obj produceToString]"
+
+catch {
+    wm forget .
+    exit 0
+}

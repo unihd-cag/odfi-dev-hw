@@ -76,13 +76,11 @@ part micrel_sy8932u {
 	}
 	foreach pinloc { 7 14 } {
 		pin VCC {
-			location pinloc
+			location $pinloc
 			attr::power
 		}
 	}
 	
 	#interchangeable { out0, out1, out2, out3 }
 }
-
-
-puts "Pins Count: [llength [micrel_sy8932u cget -pinsArray]]"
+#puts "Pins Count: [llength [micrel_sy8932u cget -pinsArray]]"

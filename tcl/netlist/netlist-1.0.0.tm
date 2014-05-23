@@ -153,8 +153,6 @@ namespace eval odfi::dev::hw::netlist {
 
             ## Open File
             set ffile [odfi::common::resolveEnvVariable [lindex $filesToParse 0]]
-            
-
             set fchan [open $ffile]
 
             # Remove retrieved element from list
@@ -195,12 +193,24 @@ namespace eval odfi::dev::hw::netlist {
                     *.vhdl -
                     *.xci  -
                     sources {
+
+                        ## If relative, normalize path from current FFile path
+                        if {[file pathtype $line]=="relative"} {
+                            set line [file dirname $ffile]/$line
+                        }
+
                         $fFile addSource $line
                     }
 
-                    "-f *" {
+                    "-f *" {    
 
+                        ## Get Path 
                         set fFilePath           [odfi::common::resolveEnvVariable [regsub -- {-f\s*(.+)} $line {\1}]]
+
+                        ## If relative, normalize path from current FFile path
+                        if {[file pathtype $fFilePath]=="relative"} {
+                            set fFilePath [file dirname $ffile]/$fFilePath
+                        }
 
                          ## Verify File existence
                         if {![file exists $fFilePath]} {
@@ -222,14 +232,31 @@ namespace eval odfi::dev::hw::netlist {
 
 
                     +incdir+* {
-                        lappend incdirs [regsub -- {\+incdir\+(.+)} $line {\1}]
-                        $fFile addIncdir [regsub -- {\+incdir\+(.+)} $line {\1}]
+
+                        set path [regsub -- {\+incdir\+(.+)} $line {\1}]
+
+                        ## If relative, normalize path from current FFile path
+                        if {[file pathtype $path]=="relative"} {
+                            set path [file dirname $ffile]/$path
+                        }
+
+                        lappend incdirs $path
+                        $fFile addIncdir $path
                     }
                     "-incdir *" {
-                        lappend incdirs [regsub -- {-incdir\s*(.+)} $line {\1}]
-                        $fFile addIncdir [regsub -- {-incdir\s*(.+)} $line {\1}]
+
+                        set path [regsub -- {-incdir\s*(.+)} $line {\1}]
+
+                        ## If relative, normalize path from current FFile path
+                        if {[file pathtype $path]=="relative"} {
+                            set path [file dirname $ffile]/$path
+                        }
+
+                        lappend incdirs $path
+                        $fFile addIncdir   $path
                     }
                     +define+* {
+                        
                         lappend defines [regsub -- {\+define\+(.+)} $line {\1}]
                     }
                     "-define *" {

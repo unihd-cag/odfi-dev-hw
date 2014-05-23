@@ -2,7 +2,7 @@
 package provide odfi::dev::hw::package  1.0.0
 package require odfi::common
 package require odfi::closures 2.1.0
-package require odfi::files
+package require odfi::files 1.0.0
 package require odfi::scenegraph::svg
 
 
@@ -167,15 +167,28 @@ namespace eval odfi::dev::hw::package {
         ## Packaeg type for this part
         odfi::common::classField public package ""
 
+        ## part file definition location 
+        odfi::common::classField public partFile ""
+        odfi::common::classField public partFileDir ""
+
         constructor args {
 
             ## Default 
             name [regsub -all {::} [string trimleft $this ::] _]
 
-            #puts "constructing new Part object $name"
-            if { "$args" != ""} {
-                odfi::closures::doClosure [join $args]
-            }
+           
+
+            ## Initial dimensions
+            set width 1 
+            set height 1
+
+            ## Save current File location 
+            set partFile    [file normalize [info script]]
+            set partFileDir [file dirname   $partFile]
+
+            odfi::closures::doClosure [join $args]
+          
+
         }
 
         ## Add a pin definition, and updates size of array
@@ -183,31 +196,38 @@ namespace eval odfi::dev::hw::package {
             
             ## Create Pin
             ##########
+            #puts "Creating pin $name"
             set pin [::new [namespace parent]::Pin #auto $name $closure]
+           # puts "Done Creating pin $name"
             
             ## Check
             #############
             set existingPin [getPinAt [$pin getX] [$pin getY]]
             if {$existingPin!=""} {
-                odfi::log::error "@[$pin position]: Adding pin [$pin name] failed because pin [$existingPin name] already exists at this location"
+                odfi::log::error "@[$pin getPos]: Adding pin [$pin name] failed because pin [$existingPin name] already exists at this location"
             }
             
-            set position [$pin getPos]
 
             ## Add/Replace
-            set pinsArray [odfi::list::arrayReplace $pinsArray $position $pin]
+            #lappend pinsArray [list [$pin getPos] $pin]
+            set pinsArray [odfi::list::arrayReplace $pinsArray [$pin getPos] $pin]
 
-            #::puts "Adding Pin $name at $position (x:[$pin getX] ,y:[$pin getY])"
+            #::puts "Adding Pin $name at [$pin getPos] (x:[$pin getX] ,y:[$pin getY])"
 
             ## Update Size
-            if {[$pin getX]>$width} {
-                set width [$pin getX]
+            if {[$pin getX]>=$width} {
+                
+                width [expr [$pin getX]+1]
+
+               # puts "Update width to [width]"
             }
 
-            if {[$pin getY]>$height} {
-                set height [$pin getY]
+            if {[$pin getY]>=$height} {
+                height [expr [$pin getY]+1]
             }
-#1 ?
+
+            #1 ?
+            return $pin
         }
 
         ## Add a new pin
@@ -220,6 +240,17 @@ namespace eval odfi::dev::hw::package {
             return $pinsArray
         }
 
+        ## Returns a list of the object pins
+        public method getPins args {
+
+            set res {}
+            foreach entry $pinsArray {
+                lappend res [lindex $entry 1]
+            }
+
+            return $res
+        }
+
         ## @return the number of registered pins
         public method getPinsCount args {
             return [expr [llength $pinsArray]/2]
@@ -227,17 +258,36 @@ namespace eval odfi::dev::hw::package {
 
         ## Runs a closure on each pin of this part
         public method eachPin closure {
-            foreach {loc it} $pinsArray {
+            foreach entry $pinsArray {
+                set loc [lindex $entry 0]
+                set it [lindex $entry 1]
                 odfi::closures::doClosure $closure 1
             }
+        }
+
+        ## Search for all the pins whose name match the regular expression, and apply the provided closure to them
+        ## @reg The search regular expression 
+        ## @closure The Closure to apply to the found pin.
+        public method configurePins {reg cl} {
+
+            eachPin {
+             
+                if {[regexp $reg [$it name]]} {
+                     $it apply $cl
+                }
+            }
+
+       
         }
 
         public method getPinAt {x y} {
 
             set res ""
-            foreach {loc it} $pinsArray {
+            foreach entry $pinsArray {
+                set loc [lindex $entry 0]
+                set it  [lindex $entry 1]
                  if {[$it getX]==$x && [$it getY]==$y} {
-                    #puts "Found $it"
+                    #puts "Found $it at $x $y"
                     set res $it
                     break
                 }
@@ -305,28 +355,29 @@ namespace eval odfi::dev::hw::package {
         }
 
         ## Read Some Pin Definitions from an input list containing {position name} pairs
-        #
+        #   @list may be a file 
         public method readInputList list {
 
-            foreach el $list  {
+            ## Read from file 
+            if {[file isfile $list]} {
+                set f [open $list]
+                set list [string trim [read $list]]
+                close $f
+            }
+
+            foreach {ppos pname} $list  {
         
-                set name [lindex $el 1]
-                set pos [lindex $el 0]
-                #puts "pos: $pos name: $name"
-                #addPinDefinition $position $name
-                pin $name {
-                    location $pos
+                #puts "Reading pin: $ppos $pname"
+                pin $pname {
+                    location $ppos
                 }
             }
 
+          #  puts "Done reading list"
 
         }
 
-        public method packageInfo args {
-            foreach {pos pin} $pinsArray {
-                $pin pinInfo
-            }
-        }
+        
 
         ## Read Some pin Definitions based on a CSV file, with columns beeing numbers and Lines letter
         public method readCSV csvContent {
@@ -370,15 +421,14 @@ namespace eval odfi::dev::hw::package {
             }
         }
 
+
+        public method packageInfo args {
+            foreach {pos pin} $pinsArray {
+                $pin pinInfo
+            }
+        }
+
         
-
-    }
-
-    ########################
-    ## Footprint Class
-    #########################
-    itcl::class Footprint {
-        inherit Part
 
     }
 
@@ -438,6 +488,10 @@ namespace eval odfi::dev::hw::package {
 
         }
 
+        public method apply closure {
+            #odfi::closures::doClosure $closure
+        }
+
         ## Set Pin location using A0/A1 etc.. format
         ## The X/Y Position is extracted by analysing the location format (Letters for Y and digits for X)
         public method location {loc} {
@@ -485,7 +539,7 @@ namespace eval odfi::dev::hw::package {
             #puts "x: $x, y: $y"
         }
 
-        public method getPos {} {
+        public method getPos args {
             return $position
         }
 
@@ -685,20 +739,7 @@ namespace eval odfi::dev::hw::package {
     }
 
 
-    #########################
-    ## Test Output to test available Producers
-    #########################
-    itcl::class TestOutput {
-	inherit BaseOutputGenerator
-
-	constructor cFootprint {BaseOutputGenerator::constructor $cFootprint} {
-
-        }
-	public method produceToString args {
-	     set view [odfi::list::arrayGetDefault $args "-view" ""]
-	     return "TestOutPut - View: $view"
-	}
-    }
+    
 
     #########################
     ## DML Output
@@ -706,7 +747,7 @@ namespace eval odfi::dev::hw::package {
     itcl::class DMLOutput {
         inherit BaseOutputGenerator
 
-        public variable name "DMLOutput"
+        #public variable name "DMLOutput"
 
         public variable availableViews "DML Code"
 
@@ -715,7 +756,7 @@ namespace eval odfi::dev::hw::package {
 
 
         constructor cFootprint {BaseOutputGenerator::constructor $cFootprint} {
-
+            set name "DMLOutput"
         }
         
         private method addSpaces {s} {
@@ -947,15 +988,15 @@ namespace eval odfi::dev::hw::package {
     itcl::class SVGOutput {
         inherit BaseOutputGenerator
 
-        public variable name "SVGOutput"
+      
 
-        public variable availableViews "topview bottomview aa"
+        public variable availableViews "topview bottomview"
         odfi::common::classField protected pinSize 20
 
         odfi::common::classField protected gridSpacing 5
 
         constructor cFootprint {BaseOutputGenerator::constructor $cFootprint} {
-
+            set name "SVG"
         }
 
         ## Returns an ID to use in use element for instanciating shape
@@ -974,14 +1015,13 @@ namespace eval odfi::dev::hw::package {
         ## Create SVG To Given String
         public method produceToString args {
 
-            set view [odfi::list::arrayGetDefault $args "-view" ""]
-
+            #set view [odfi::list::arrayGetDefault $args "-view" ""]
+            set view ""
 
             ## Create SVG
             ###################
             set producer $this
-            puts "producer is $producer"
-            set svg [::new odfi::scenegraph::svg::SVG "#auto" {
+            set svg [::new odfi::scenegraph::svg::SVG #auto {
 
                 ## Init
                 ## Set Width and height based on pinSize and gridSpacing
@@ -997,21 +1037,25 @@ namespace eval odfi::dev::hw::package {
 
                 }
 
+
+
                 ## Columns numbering
                 ::repeat [$footPrint width] {
-                    text [expr $i+1] {
-                        #width  $pinSize
-                        #height $pinSize
+                    text [expr $i] {
+                        width  $pinSize
+                        height $pinSize
                     }
                 }
+
+
                  
                 ## Add a rounded rectangle for all the pins 
                 ## Every width count, add the line name 
                 ########################
-                for {set y 0} {$y<[$footPrint height]} {incr y} {
+                for {set ly 0} {$ly<[$footPrint height]} {incr ly} {
 
                     ## Add Row Name from first pin
-                    set firstPin [$part getPinAt 1 $y]
+                    set firstPin [$part getPinAt 0 $ly]
                     if {$firstPin==""} {
                         text "X"
                     } else {
@@ -1020,10 +1064,10 @@ namespace eval odfi::dev::hw::package {
                     #::puts "Set first pin at: 0,$y -> $firstPin"
                    # text [$firstPin getRow]
 
-                    for {set x 0} {$x<[$footPrint width]} {incr x} {
+                    for {set lx 0} {$lx<[$footPrint width]} {incr lx} {
 
                         ## Add Pins for this line 
-                        set pin [$part getPinAt $x $y]
+                        set pin [$part getPinAt $lx $ly]
                         #::puts "Pin at: $x,$y -> $pin"
                         if {$pin!=""} {
                             addRect {
@@ -1072,7 +1116,6 @@ namespace eval odfi::dev::hw::package {
                 layout "flowGrid" [list \
                     columns [expr [$footPrint width]+1] \
                     spacing $gridSpacing \
-
                 ]
 
                 #change layout according to view
@@ -1087,6 +1130,7 @@ namespace eval odfi::dev::hw::package {
             }]
 
 
+            #puts stderr "Outputing member [$svg member 0]: [[$svg member 0] getAbsoluteX] "
 
             ## Return String
             ########################
@@ -1125,5 +1169,5 @@ namespace eval odfi::dev::hw::package {
 ## Load Extra Default packages 
 #################
 source [file dirname [info script]]/svghtmlProducer-1.0.0.tm
-source [file dirname [info script]]/webapp-1.0.0/PackageWebapp.tm
+#source [file dirname [info script]]/webapp-1.0.0/PackageWebapp.tm
 source [file dirname [info script]]/package-1.0.0-attributes.tcl

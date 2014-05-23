@@ -1,10 +1,11 @@
 package provide odfi::implementation::edid::rtl 1.0.0
+package provide odfi::dev::hw::rtl 1.0.0
 package require odfi::common
 package require odfi::list
 
 ## A Few utilities for RTL interaction.
 ## To be used where/if needed
-namespace eval edid::rtl {
+namespace eval odfi::dev::hw::rtl {
 
 
     odfi::common::resetNamespaceClasses [namespace current]
@@ -81,6 +82,14 @@ namespace eval edid::rtl {
             return $group
         }
 
+        public method hasGroup args {
+            if {$group==""} {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
         ## \brief Manually set the size (bus width) of the pin
         public method setSize fSize {
             set size $fSize
@@ -143,8 +152,8 @@ namespace eval edid::rtl {
     ## This method also executes TCL placed in comments after the pin definition like:
     ## input wire myPin, //tcl// puts "Pin name: [$pin getName]"
     ## FIXME \addToGroup not implemented
-    ## @return A list of #IOPin classes, whic hare per default classed in the "unassigned" group
-    proc extractIOFromFile rtlFile {
+    ## @return A list of #IOPin classes, which are per default sorted in the "unassigned" group
+    proc extractIOFromFile {rtlFile } {
 
         ## Read RTL
         set rtlChan [open $rtlFile "r"]
@@ -230,7 +239,7 @@ namespace eval edid::rtl {
                 #break
             }
 
-            ## If Extra match is defined, it might be doxygen stuff, so parse if too
+            ## If Extra match is defined, it might be doxygen stuff, so parse it too
             if {$extraMatch!=""} {
 
                 #puts "parsing extra: $extraMatch for pin $pin"
