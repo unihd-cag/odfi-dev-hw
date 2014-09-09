@@ -1,0 +1,49 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.odfi.dev.verilog</groupId>
+	<artifactId>verilog-parser</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<name>Verilog Parser</name>
+	<description>Verilog to AST and Data Model parser</description>
+	<parent>
+        <groupId>com.idyria.osi</groupId>
+        <artifactId>superpom-scala</artifactId>
+        <version>2.11.2.r1</version>
+    </parent>
+    <build>
+		<plugins>
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<configuration>
+					<addZincArgs>-no-color</addZincArgs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sourceDir>${basedir}/src/main/java</sourceDir>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+    </build>
+	<dependencies>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr</artifactId>
+			<version>3.4</version>
+		</dependency>
+		<dependency>
+			<groupId>com.idyria.osi.tea</groupId>
+			<artifactId>tea</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+	</dependencies>
+</project>
