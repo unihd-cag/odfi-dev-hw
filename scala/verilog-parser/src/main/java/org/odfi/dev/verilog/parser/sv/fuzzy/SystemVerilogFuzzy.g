@@ -12,9 +12,9 @@ options {
 
 @header {
 
-package org.odfi.dev.languages.antlr.sv.fuzzy;
+package org.odfi.dev.verilog.parser.sv.fuzzy;
 
-import org.odfi.dev.languages.antlr.parsing.*;
+import org.odfi.dev.verilog.parser.parsing.*;
 
 import java.util.LinkedList;
 
@@ -22,10 +22,10 @@ import java.util.LinkedList;
 
 @lexer::header {
 
-package org.odfi.dev.languages.antlr.sv.fuzzy;
+package org.odfi.dev.verilog.parser.sv.fuzzy;
 
-import org.odfi.dev.languages.antlr.parsing.*;
-import org.odfi.dev.languages.antlr.parsing.Lexer;
+import org.odfi.dev.verilog.parser.parsing.*;
+import org.odfi.dev.verilog.parser.parsing.Lexer;
 
 }
 

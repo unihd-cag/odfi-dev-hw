@@ -8,12 +8,12 @@ options {
 
 
 @header {
-package org.odfi.dev.languages.antlr.sv.preproc;
+package org.odfi.dev.verilog.parser.sv.preproc;
 
 }
 
 @lexer::header {
-package org.odfi.dev.languages.antlr.sv.preproc;
+package org.odfi.dev.verilog.parser.sv.preproc;
 }
 
 

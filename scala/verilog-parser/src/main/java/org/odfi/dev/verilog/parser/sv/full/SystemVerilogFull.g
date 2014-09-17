@@ -4,6 +4,10 @@ options {
   language= Java;
   output=AST;
   ASTLabelType=CommonTree;
+  
+  TokenLabelType = XQToken;
+  superClass=XQParser;
+
 }
 
 //import SystemVerilogLexer;
@@ -32,15 +36,18 @@ tokens {
 
 
 @header {
-package org.odfi.dev.languages.antlr.sv.full;
+package org.odfi.dev.verilog.parser.sv.full;
 
-//import uni.hd.cag.languages.parsing.*;
+
+import org.odfi.dev.verilog.parser.parsing.*;
+import org.odfi.dev.verilog.parser.parsing.Lexer;
 }
 
 @lexer::header {
-package org.odfi.dev.languages.antlr.sv.full;
-//import uni.hd.cag.languages.parsing.*;
-//import uni.hd.cag.languages.parsing.Lexer;
+package org.odfi.dev.verilog.parser.sv.full;
+
+import org.odfi.dev.verilog.parser.parsing.*;
+import org.odfi.dev.verilog.parser.parsing.Lexer;
 }
 
 @members {
@@ -73,7 +80,7 @@ verilog :
 //	MODULE
 //-----------------------------------------------
 
-/*module :
+module :
   .*
 	('module')
 	IDENTIFIER
@@ -90,22 +97,24 @@ verilog :
 		| assign_declaration
 	)*
 	('endmodule') -> ^(MODULE ^(MODULE_NAME IDENTIFIER) module_parameters? module_ports? variable_declaration* module_instanciation* )
-;*/
-
+;
+/*
 module :
   .*
   fpga_param*
-  ('module')
+  (MODULE)
   IDENTIFIER
   (POUND LPAREN module_parameters  NEWLINE? RPAREN)?
   (LPAREN module_ports NEWLINE? RPAREN)?
   SEMI
-  
-  (
-    .
-  )*
-  ('endmodule') -> ^(MODULE ^(MODULE_NAME IDENTIFIER) module_parameters? module_ports? )
+
+ 
+  .*
+ 
+  (ENDMODULE) -> ^(MODULE ^(MODULE_NAME IDENTIFIER) module_parameters? module_ports? )
 ;
+*/
+
 
 module_hierarchical :
   .*
@@ -121,7 +130,7 @@ module_hierarchical :
    | module_instanciation
   )+*/
   (
-   module_instanciation
+   module_instanciation | ANY
   )*
   ('endmodule') -> ^(MODULE ^(MODULE_NAME IDENTIFIER) module_parameters? module_ports? module_instanciation* )
 ;
@@ -218,10 +227,9 @@ module_instanciation:
                        -> ^(MODULE_INSTANCE $type $name port_connections) 
 ;
 
-port_connections: port_connection? (COMMA port_connection)*;
+port_connections: port_connection (COMMA port_connection)* -> port_connection+;
 
-port_connection : DOT 
-                  port_name=IDENTIFIER 
+port_connection :  port_name=CONNECTION_IDENTIFIER 
                   (
       
                    (LPAREN local_connection=concatenable_expression RPAREN )
@@ -510,9 +518,14 @@ OR          : 'or'  ;
 //-- FPGA param
 FPGA_PARAM_START : '(*';
 FPGA_PARAM_STOP: '*)';
+
 //-- Module
 MODULE: 'module';
+ENDMODULE: 'endmodule';
 PORT_DIRECTION : 'input' | 'output' | 'inout';
+
+//-- Instances
+CONNECTION_IDENTIFIER: DOT IDENTIFIER;
 
 //-- Structures
 ASSIGN      : 'assign';
@@ -572,14 +585,14 @@ DOXYGEN_PARAM:
 ;
 
 
+
+
 // Preprocessor instructions
 //-------------
 PREP_INCLUDE: EXE_QUOTE 'include' {$channel=HIDDEN;};
 PREP_IFDEF: EXE_QUOTE 'ifdef' IDENTIFIER {$channel=HIDDEN;}; 
 PREP_ELSE: EXE_QUOTE ELSE {$channel=HIDDEN;};
 PREP_ENDIF: EXE_QUOTE 'endif' {$channel=HIDDEN;};
-
-
 
 
 
@@ -591,3 +604,5 @@ COMMENTAR_SHORT: COMM_BEGIN ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN;};
 COMMENTAR_LONG: '/*' .* '*/' {$channel=HIDDEN;} ;     
 NEWLINE:'\r'?'\n' {$channel=HIDDEN;};
 WS  :   (' '|'\t'|'\n'|'\r')+ {$channel=HIDDEN;} ; 
+
+ANY: . {$channel=HIDDEN;};

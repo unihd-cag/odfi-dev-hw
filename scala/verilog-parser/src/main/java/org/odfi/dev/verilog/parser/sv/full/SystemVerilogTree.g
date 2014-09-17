@@ -3,7 +3,7 @@ tree grammar SystemVerilogTree;
 
 options {
     tokenVocab=SystemVerilogFull;
-    ASTLabelType=CommonTree;
+    ASTLabelType=CommonTree; 
 }
 
 scope ParametersScope {
@@ -15,15 +15,15 @@ scope ParametersScope {
 // START:members
 @header {
 
-package org.odfi.dev.languages.antlr.sv.full;
+package org.odfi.dev.verilog.parser.sv.full;
 
 import java.util.Map;
 import java.util.HashMap;
 import java.math.BigInteger;
-import org.odfi.dev.languages.antlr.sv.model.*;
+import org.odfi.dev.verilog.parser.sv.model.*;
 
 }
-
+ 
 
 @members {
 
@@ -200,6 +200,7 @@ port_declaration[Module module]
 
 // Module instanciations
 //--------------------------
+module_instanciations [Module m] : module_instanciation[m]*;
 module_instanciation [Module m]
   returns [ModuleInstance mi]:
   
@@ -210,7 +211,7 @@ module_instanciation [Module m]
     $m.getModuleInstances().add($mi);
   }
   ;
-port_connection: ^(MODULE_INSTANCE_CONNECTION port_name=IDENTIFIER local_connection=IDENTIFIER?);
+port_connection: ^(MODULE_INSTANCE_CONNECTION port_name=CONNECTION_IDENTIFIER local_connection=IDENTIFIER?);
 
 
 

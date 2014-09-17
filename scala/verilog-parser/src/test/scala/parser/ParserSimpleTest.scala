@@ -110,7 +110,7 @@ endmodule
     assertResult(2)(instances.size())
     
     //-- First Instance
-    assertResult("submod0_I")(instances.get(0).getName())
+    assertResult("velo_I")(instances.get(0).getName())
     
   }
 

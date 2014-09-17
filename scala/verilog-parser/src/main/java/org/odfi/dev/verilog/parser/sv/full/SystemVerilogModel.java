@@ -118,7 +118,7 @@ public class SystemVerilogModel extends
 				this.module = v.getModules().size()>0?v.getModules().get(0):null;
 			}
 			
-			
+		
 			
 		} catch (RecognitionException e) {
 			// TODO Auto-generated catch block
