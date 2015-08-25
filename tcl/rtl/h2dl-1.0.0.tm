@@ -346,7 +346,7 @@ namespace eval h2dl {
 
 
 
-            addChild $newInput
+            :addChild $newInput
 
             ## Set Variable in uplevel for later Hierarchy usage
             uplevel "set $name $newInput" 
@@ -374,7 +374,7 @@ namespace eval h2dl {
 
             set newOutput [::new [namespace parent]::Output $this.$name $name $closure]
 
-            addChild $newOutput
+            :addChild $newOutput
 
             ## Set Variable in uplevel for later Hierarchy usage
             uplevel "set $name $newOutput" 
