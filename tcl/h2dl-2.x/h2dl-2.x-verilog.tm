@@ -50,6 +50,8 @@ namespace eval odfi::dev::hw::h2dl::verilog {
                     lappend filesList $targetFile
 
                     set out [::new odfi::richstream::RichStream #auto]
+                    $out streamToFile $targetFile
+
                     set instanceOut [::new odfi::richstream::RichStream #auto]
 
 
@@ -61,20 +63,40 @@ namespace eval odfi::dev::hw::h2dl::verilog {
                     #### IO 
                     set ios {}
                     set instanceConnections {}
+                    set conn ""
                     [[$node noShade children] filter { return [odfi::common::isClass $it ::odfi::dev::hw::h2dl::IO] }] foreach {
                         child => 
 
-                         
+                            
+                            ## Description
+                            set desc [$child description get]
+                            if {$desc!="" && $desc!="{}"} {
+                                set  desc "    // [$child description get]\n"
+                            } else {
+                                set desc ""
+                            }
+ 
+                            ## Definition
                             if {[$child info class]=="::odfi::dev::hw::h2dl::Input"} {
-                                lappend ios "    input [$child type get] [$child name get]"
+                                lappend ios "$desc    input [$child type get] [$child name get]"
                             } elseif {[$child info class]=="::odfi::dev::hw::h2dl::Output"} {
-                                lappend ios "    output [$child type get] [$child name get]"
+                                lappend ios "$desc    output [$child type get] [$child name get]"
                             }
 
                             ## Find Connection 
+                            ## Connection can be a child of this signal, or it can be a parent
+                            set conn ""
                             set conn [[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0]
                             if {$conn==""} {
-                                lappend  instanceConnections ".[$child name get]([join [$child connect get]])"
+                                set conn [$child shade ::odfi::dev::hw::h2dl::Connection parent]
+                            }
+                            #puts "Processing IO [$child name get], child connection: [[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0], parents: [[$child parents] size],[$child shade ::odfi::dev::hw::h2dl::Connection parent]"
+                            #set conn ::select -not {
+                            #    {[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0}
+                            #    {[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0}
+                            #}
+                            if {$conn==""} {
+                                lappend  instanceConnections ".[$child name get]()"
                             } else {
                                 lappend  instanceConnections ".[$child name get]([$conn name get])"
                             }
@@ -93,18 +115,27 @@ namespace eval odfi::dev::hw::h2dl::verilog {
                     
 
                     #### End Module
-                    $out <<  [join $args]
+                    #puts "Args are: $args"
+                    $out << [join $args]
+                    #foreach a $args {
+                    #    $out <<  $a
+                    #    #::puts "Outputing $a"
+                    #}
+                    
+
+                    $out << "//--"
                     $out << "endmodule;"
 
                     $instanceOut << ");"
 
                     #### Write to file
-                    $out toFile $targetFile
+                    #$out toFile $targetFile
 
                     ## Return Instantiation Model 
                     #####################
        
                     # Return 
+                    #return "-"
                     return [$instanceOut toString]
 
 

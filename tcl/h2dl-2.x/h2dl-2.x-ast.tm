@@ -20,15 +20,29 @@ namespace eval odfi::dev::hw::h2dl::ast {
                    return [::new [namespace current]::ASTMultiply #auto]    
                 }
                 {==} {
-                   return [::new [namespace current]::ASTCompare #auto]    
+                   return [[namespace current]::ASTCompare new]    
                 }
 
                 {[0-9]+} {
                     return [[namespace current]::ASTConstant new -constant $operator]    
                 }
 
+                {&} {
+                    return [[namespace current]::ASTAnd new]    
+                }
+
+                {\|} {
+                    return [[namespace current]::ASTBitOr new]    
+                }
+
                 {!} {
                     return [[namespace current]::ASTNegate new -operator !]    
+                }
+                {\?} {
+                    return [[namespace current]::ASTIf new -operator !]    
+                }
+                 {:} {
+                    return [[namespace current]::ASTElse new -operator !]    
                 }
                 default {
                     error "Unsupported ast node: $operator cannot be converted to a representation"
@@ -69,20 +83,28 @@ namespace eval odfi::dev::hw::h2dl::ast {
        # }
        set expr [regsub -all {\)} $args "}"]
        set expr [regsub -all {\(} $expr "\{"]
-        puts "Trans Expression is $expr ([llength $expr]) (before: $args)"
+        #puts "Trans Expression is $expr ([llength $expr]) (before: $args)"
+        
         #([llength $expr])
 
         ## Stacks
-        set expressions [list [list "" $expr]]
-        set res {}
+        set stack [odfi::flist::MutableList new]
+        $stack += [list "" $expr]
+        set topParent ""
+        #set expressions [list [list "" $expr]]
+        #set res {}
 
         ## Process 
         #####
-        while {[llength $expressions]>0} {
+        while {[$stack size]>0} {
 
             ## Get current 
-            set currentExpression [lindex [lindex $expressions 0] 1]
-            set resultParent [lindex [lindex $expressions 0] 0]
+            set currentPair [$stack pop]
+            set currentParent [lindex $currentPair 0]
+            set currentExpression [lindex $currentPair  1]
+            
+            #set currentExpression [lindex [lindex $expressions 0] 1]
+            #set resultParent [lindex [lindex $expressions 0] 0]
 
             ## Checks 
             #############
@@ -98,21 +120,30 @@ namespace eval odfi::dev::hw::h2dl::ast {
             ## Process depending on size 
             ##################################
 
-            ## Size 1, only one node, return it if it's a node, or convert it to a node, otherwise error 
+            ## Size 1, only one node, try to convert to node, and add to parent return it if it's a node, or convert it to a node, otherwise error 
             ## Size 2, Format: operator operand 
             ## Size 3, Format: operand  operator  operand
             ## Otherwise, error 
             switch -exact -- [llength $currentExpression] {
                 1 {
                    set returnNode [lindex $currentExpression 0]
-                   if {[odfi::common::isClass $returnNode ::odfi::flextree::FlexNode]} {
-                        #odfi::log::error "Expression $currentExpression has not understandable format"
-                        return $returnNode
+                   set returnNode [astOperatorToNode $returnNode]
+
+                   ## Set as top node or add 
+                   if {$currentParent==""} {
+                        set topParent $returnNode
                    } else {
+                        $currentParent addChild $returnNode
+                   }
+
+                   #if {[odfi::common::isClass $returnNode ::odfi::flextree::FlexNode]} {
+                        #odfi::log::error "Expression $currentExpression has not understandable format"
+                    #    return $returnNode
+                   #} else {
 
                         ## Convert to constant
-                        return [astOperatorToNode $returnNode]
-                   }
+                    #    return [astOperatorToNode $returnNode]
+                   #}
                 }
                 2 {
                     
@@ -120,67 +151,82 @@ namespace eval odfi::dev::hw::h2dl::ast {
                     set operator [lindex $currentExpression 0]
                     set right [lindex $currentExpression 1]
 
-                    odfi::log::info "Format Operator ($operator) Operand ($right) for $currentExpression"
+                    #puts "Format Operator ($operator) Operand ($right) for $currentExpression"
+
+                    ## Get Operator Node 
+                    set operatorNode [astOperatorToNode $operator]
+
+                    ## Add To parent or set as top 
+                    if {$currentParent==""} {
+                        set topParent $operatorNode
+                    } else {
+                        $currentParent addChild $operatorNode
+                    }
+
+                    ## Stack Operands
+                    $stack += [list $operatorNode $right]
+
+                    
                 }
                 3 {
-                    odfi::log::info "Format Operand Operator Operand "
+
+                    #puts "Format Operand operator Operand ($currentExpression)"
+
                     set left [lindex $currentExpression 0]
                     set operator [lindex $currentExpression 1]
                     set right [lindex $currentExpression 2]
+
+                    ## Get Operator Node 
+                    set operatorNode [astOperatorToNode $operator]
+ 
+                    ## Add To parent or set as top 
+                    if {$currentParent==""} {
+                        set topParent $operatorNode
+                    } else {
+                        $currentParent addChild $operatorNode
+                    }
+
+                    ## Stack Operands
+                    $stack += [list $operatorNode $left]
+                    $stack += [list $operatorNode $right]
                 }
                 default {
-                    odfi::log::error "Expression $currentExpression has not understandable format"
+
+                    ##  Try to recognise
+                    ##  Take first 3
+                    set newExpresssion [lrange $currentExpression 0 2]
+                    set nextExpression [lrange $currentExpression 3 end]
+
+                    set left [lindex $newExpresssion 0]
+                    set operator [lindex $newExpresssion 1]
+                    set right [lindex $newExpresssion 2]
+
+                    ## Get operator node
+                    set operatorNode [astOperatorToNode $operator]
+
+                    ## Add To parent or set as top 
+                    if {$currentParent==""} {
+                        set topParent $operatorNode
+                    } else {
+                        $currentParent addChild $operatorNode
+                    }
+
+                    ## Add left and right to stack
+                    $stack += [list $operatorNode $left]
+                    $stack += [list $operatorNode $right]
+
+                    ## Add next expression to stack too
+                    $stack += [list $operatorNode $nextExpression]
+
+                    #odfi::log::error "Expression $currentExpression has no understandable format"
                 }
-            }
-
-  
-
-            ## Process 
-            ###########
-            #set left [lindex $currentExpression 0]
-            #set operator [lindex $currentExpression 1]
-            #set right [lindex $currentExpression 2]
-
-            ## Build operator AST
-            set operatorNode [astOperatorToNode $operator]
-            lappend res $operatorNode
-
-            ## Left 
-            if {$left!="" && [llength $left]>1 } {
-
-                lappend expressions [list $operatorNode $left]
-
-            } elseif {$left!=""} {
-
-                set leftNode [astOperatorToNode $left]
-                $operatorNode addChild $leftNode
-            }
-
-            ## Right 
-            if {[llength $right]>1} {
-
-                lappend expressions [list $operatorNode $right]
-
-            } else {
-                set rightNode [astOperatorToNode $right]
-                $operatorNode addChild $rightNode
-            }
-
-            ## Finish expression
-            #########
-
-            ## Add to parent if necessary
-            if {$resultParent!=""} {
-                $resultParent addChild $operatorNode
-            }
-
-            ## Remove from list 
-            set expressions [lrange $expressions 1 end]
+            }            
 
         }
         
+        #puts "Top parent is of type: [$topParent info class]"
 
-        return [lindex $res 0]
+        return $topParent
 
     } 
 
@@ -275,11 +321,68 @@ namespace eval odfi::dev::hw::h2dl::ast {
     }
 
     nx::Class create ASTNegate -superclasses ASTOperator {
-
+        :method init args {
+            set operator "!"
+            next
+        }
     }
 
     nx::Class create ASTAdd -superclass ASTOperator {
+      :method init args {
+            set operator "+"
+            next
+        }
+    }
+
+    nx::Class create ASTAnd -superclass ASTOperator {
+    
+        :method init args {
+            set operator "&"
+            next
+        }
+    }
+
+    nx::Class create ASTBitOr -superclass ASTOperator {
+        
+        :method init args {
+            set operator "|"
+            next
+        }
+
+    }
+
+    ## Comparisons 
+    nx::Class create ASTCompare -superclass ASTOperator {
       
+        :method init args {
+            set operator "=="
+            next
+        }
+
+    }
+
+    #### Branching 
+    ########################
+
+    ## Left: Condition 
+    ## Second: Body 
+    ## Right : Else
+    nx::Class create ASTIf -superclass ASTOperator {
+      
+        :method init args {
+            set operator "?"
+            next
+        }
+
+    }
+
+    nx::Class create ASTElse -superclass ASTOperator {
+      
+        :method init args {
+            set operator ":"
+            next
+        }
+
     }
 
 
@@ -328,10 +431,37 @@ namespace eval odfi::dev::hw::h2dl::ast {
 
     nx::Class create ASTNonBlockingAssign -superclasses ASTOperator {
 
+        :property {fromBitRange -1}
+        :property {toBitRange   -1}
+
         :method init args {
             set :operator "<="
             next
         }
+
+        :public method test2  args {
+
+        }
+
+        ## This method merges all the values on the left side to the first available value 
+        #:public method mergeLeft args {
+
+         #   set left [:child 0]
+
+        #}
+    }
+
+    nx::Class create ASTBlockingAssign -superclasses ASTOperator {
+
+        :property {fromBitRange -1}
+        :property {toBitRange   -1}
+
+        :method init args {
+            set :operator "="
+            next
+        }
+
+      
     }
 
     ## Constant 

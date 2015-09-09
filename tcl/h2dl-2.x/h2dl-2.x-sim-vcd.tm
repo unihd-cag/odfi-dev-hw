@@ -37,10 +37,13 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
         ## Register the node here, and generate and object with name, signal type, identifier and so on
         :public method registerDumpSignal signal {
 
-            odfi::log::info "Register signal to dump [$signal name get]"
+            
 
             ## Create target scope for signal 
-            set hierarchyParents [[$signal shade ::odfi::dev::hw::h2dl::Module getPrimaryParents]]
+            set hierarchyParents [$signal shade ::odfi::dev::hw::h2dl::Module getPrimaryParents]
+
+            odfi::log::info "Register signal to dump [$signal name get], [$signal getPrimaryTreeDepth] , [$hierarchyParents size]"
+
             set scopeString [$hierarchyParents > map { return [$it name get] } mkString "."]
 
             odfi::log::info "Scope: $scopeString"
@@ -116,9 +119,20 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
                     ## Type 
                     set typeInfo  [:getTypeInfo $signal]
                     
+                    ## Value 
+                    set val x 
+                    #set currentValue [$signal shade ::odfi::dev::hw::h2dl::sim1::SimulationValue child 0]
+                    set currentValue [$signal shade odfi::dev::hw::h2dl::sim::vcd::VCDDumpValue child 0]
+
+                    set valString [:getValueString $signal $id $currentValue]
+                    
+                    if {$currentValue!=""} {
+                        set val [$currentValue getValue]
+                    }
 
                     ${:out} << "\$var [lindex $typeInfo 0] $size [string map {\\ {}} $id] [$signal name get] \$end"
-                    lappend initVals $id [lindex $typeInfo 1][join [lrepeat $size x] ""]
+                    #lappend initVals $id [lindex $typeInfo 1][join [lrepeat $size $val] ""]
+                    lappend initVals $valString
 
                 }
 
@@ -130,10 +144,13 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
 
             ## Init vals 
             ${:out} << "\$dumpvars"   
-            foreach {id val} $initVals {
-                ${:out} << "$val [string map {\\ {}} $id] "   
+            #foreach {id val} $initVals {
+            #    ${:out} << "$val [string map {\\ {}} $id] "   
+#
 
-
+            #}
+            foreach str $initVals {
+                ${:out} << "$str"
             }
 
             ${:out} << "\$end"   
@@ -148,9 +165,51 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
         :public method time t {
             ${:out} << "#$t"  
         }
+        :public  method getValueString {signal id value} {
+
+            ## 
+            set size        [$signal width get] 
+            set typeInfo    [:getTypeInfo $signal]
+
+            ## Limit precision  of value 
+            if {$value ==""} {
+                set finalVal "x"
+                ::repeat $size {
+                    #puts "Value of [$signal name get] bit $i -> [expr ( $value >> $i ) & 0x1] from $value"
+                    set finalVal "x"
+                }
+                return "[lindex $typeInfo 1]$finalVal [string map {\\ {}} $id]"
+            } else {
+                set value [$value getValue]
+            }
+            
+            
+            
+            if {[lindex $typeInfo 1]=="r"} {
+
+                return "[lindex $typeInfo 1]$value [string map {\\ {}} $id] "
+
+            } else {
+
+                ## Convert value to bits and pad left to size
+                set finalVal ""
+                ::repeat $size {
+                    #puts "Value of [$signal name get] bit $i -> [expr ( $value >> $i ) & 0x1] from $value"
+                    set finalVal "[expr ( $value >> $i ) & 0x1]$finalVal"
+                }
+                return "b$finalVal [string map {\\ {}} $id] "
+
+
+            }
+
+        }
 
         :public method value {signal id value} {
 
+            ${:out} << [:getValueString $signal $id $value]
+            return
+            ## Limit precision of value 
+            
             set typeInfo    [:getTypeInfo $signal]
             set size        [$signal width get] 
             if {[lindex $typeInfo 1]=="r"} {
@@ -162,6 +221,7 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
                 ## Convert value to bits and pad left to size
                 set finalVal ""
                 ::repeat $size {
+                    #puts "Value of [$signal name get] bit $i -> [expr ( $value >> $i ) & 0x1] from $value"
                     set finalVal "[expr ( $value >> $i ) & 0x1]$finalVal"
                 }
                 ${:out} << "b$finalVal [string map {\\ {}} $id] "
@@ -230,38 +290,19 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
             #if {${:currentIdentifierCode}>176}
 
             ## Monitor value change on signal 
-            $signal onChildAdded {
+            $signal sim:onValueUpdate {
 
-                #puts "CHILD ADDED, DUMP SIGNAL [:name get]"
-               
+                #puts "Value updated on: [:info class] -> [:getValue]"
 
-                set child [:child end]
-                if {[::odfi::common::isClass $child ::odfi::dev::hw::h2dl::sim::vcd::VCDDumpValue]} {
-
-
-                    ## get VCD Scope from parent list
-                    set scope [[:parents get] find { odfi::common::isClass $it ::odfi::dev::hw::h2dl::sim::vcd::VCDScope} ]
-
-                    ## Get Signal Dump ID 
-                    set signalId [$scope getSignalIdentifier [current object]]
-
-                    [$scope parent] value [current object] $signalId [$child getValue]
-
-                    ## Listen on Child Value change, in case the object won't be replaced
-                    $child onValueChanged {
-
-
-                        set signal [:parent]
-
-                        #puts "Monitored value change on SimulatinoValue [current object] parent [$signal info class]"
-
-
-                        set scope [[$signal parents get] find { odfi::common::isClass $it ::odfi::dev::hw::h2dl::sim::vcd::VCDScope} ]
-                        set signalId [$scope getSignalIdentifier $signal]
-                        [$scope parent] value $signal $signalId [:getValue]
-                    }
-                }
+                set signal [:parent]
+                set scope [[$signal parents get] find { odfi::common::isClass $it ::odfi::dev::hw::h2dl::sim::vcd::VCDScope} ]
+                set signalId [$scope getSignalIdentifier $signal]
+                [$scope parent] value $signal $signalId [current object]
             }
+
+
+            return 
+            
 
         }
     }

@@ -1,94 +1,71 @@
 $date
-Fri Jun 30 08:14:44 CET 47617
+Fri Aug 14 07:42:41 CET 47620
 $end
 $version
 H2DL 2.x Simulator Test
 $end
 $timescale 1ps $end
 $scope module tb_top $end
-$var reg 1 ! ripple9 $end
-$var reg 1 " ripple8 $end
-$var reg 1 # ripple7 $end
-$var reg 1 $ ripple6 $end
-$var reg 1 % ripple5 $end
-$var reg 1 & ripple4 $end
-$var reg 1 ' ripple3 $end
-$var reg 1 ( ripple2 $end
-$var reg 1 ) ripple1 $end
-$var reg 1 * ripple0 $end
-$var reg 8 + ripple2 $end
-$var reg 16 , counter2 $end
-$var reg 16 - counter $end
-$var real 1 . child2 $end
-$var real 1 / child1 $end
-$var reg 1 0 clock2 $end
-$var reg 1 1 clock $end
+$var reg 1 ! v2 $end
+$var reg 1 " v1 $end
+$var reg 1 # clk $end
 $upscope $end
 $enddefinitions $end
 $dumpvars
-bx !
-bx "
-bx #
-bx $
-bx %
-bx &
-bx '
-bx (
-bx )
-bx *
-bxxxxxxxx +
-bxxxxxxxxxxxxxxxx ,
-bxxxxxxxxxxxxxxxx -
-rx .
-rx /
-bx 0
-bx 1
+b0 ! 
+bx " 
+bx # 
 $end
 #0
-b0 !
-b0 "
-b0 #
-b0 $
-b0 %
-b0 &
-b0 '
-b0 (
-b0 )
-b0 *
-b00000000 +
-b0000000000000000 ,
-b0000000000000000 -
-b0 0
-b0 1
-#350
-b1 *
-b1 )
-b1 (
-b1 '
-b1 &
-b1 %
-b1 $
-b1 #
-b1 "
-b1 !
-#500
-b00000001 +
-b0000000000000001 -
-b1 0
-b0000000000000001 ,
-#800
-r15.0 .
-r25.0 /
-#1000
-b0000000000000010 -
-b0 0
-b1 1
-#1500
-b0000000000000011 -
-b1 0
-b0000000000000010 ,
-#2000
-b0000000000000100 -
-b0 0
-b0 1
-#2500
+b0 " 
+b0 # 
+#10
+b1 # 
+b1 " 
+b0 ! 
+b1 " 
+#20
+b0 # 
+#30
+b1 # 
+b1 " 
+b1 ! 
+b1 " 
+#40
+b0 # 
+#50
+b1 # 
+b0 " 
+b1 ! 
+b0 " 
+#60
+b0 # 
+#70
+b1 # 
+b0 " 
+b0 ! 
+b0 " 
+#80
+b0 # 
+#90
+b1 # 
+b1 " 
+b0 ! 
+b1 " 
+#100
+b0 # 
+#110
+b1 # 
+b1 " 
+b1 ! 
+b1 " 
+#120
+b0 # 
+#130
+b1 # 
+b0 " 
+b1 ! 
+b0 " 
+#140
+b0 # 
+#150
