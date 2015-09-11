@@ -51,7 +51,7 @@ namespace eval  odfi::dev::hw::h2dl::sim2 {
 
         :public method scheduleClosure {at closure} {
 
-            set cl [odfi::richstream::embeddedTclFromStringToString $closure]
+            set cl [odfi::richstream::template::stringToString $closure]
 
             #puts "Scheduling cl $cl"
             ## Create an Immediate Node 
@@ -357,10 +357,11 @@ namespace eval  odfi::dev::hw::h2dl::sim2 {
         :property {useForcedValue false}
 
         :method init args {
+            next
 
             #:value valuecmd TEST
             :registerEventPoint valueChanged
-            next 
+             
         }
 
         ## If in forced mode, don't update (has been during set forced)
@@ -448,7 +449,20 @@ namespace eval  odfi::dev::hw::h2dl::sim2 {
          :public method sim:setValue  {value {-now false} {-forced false} } {
 
             next 
-            
+
+            ## Force value being an object
+            puts "Setting value $value"
+            if {![odfi::common::isClass $value ::odfi::dev::hw::h2dl::sim2::SimulationValue]} {
+                set value [::odfi::dev::hw::h2dl::sim2::SimulationValue new -value $value]
+            } else {
+                set value [$value copy]
+            }
+
+            ## Try to find if the value belongs to an instance 
+            set instanceContainer [$value findParentInPrimaryLine { $it isClass odfi::dev::hw::h2dl::Instance}]
+
+            puts "Setting value on [current object], [:info class] , v is $value, Instance container: $instanceContainer"
+
             #puts "in parent set Value"
             ## Take all value nodes, or just the last one 
             set valueNodes [:shade ::odfi::dev::hw::h2dl::sim2::SimulationValue children]
@@ -571,8 +585,8 @@ namespace eval  odfi::dev::hw::h2dl::sim2 {
         :public method sim:onValueUpdate listenClosure {
 
 
-            set listenClosure [odfi::richstream::embeddedTclFromStringToString $listenClosure]
-            set code [odfi::richstream::embeddedTclFromStringToString {
+            set listenClosure [odfi::richstream::template::stringToString $listenClosure]
+            set code [odfi::richstream::template::stringToString {
 
                 #puts "CHILD ADDED, DUMP SIGNAL [:name get]"
                 
@@ -1138,6 +1152,44 @@ namespace eval  odfi::dev::hw::h2dl::sim2 {
 
      }
 
+     ##########################################
+     ## Connection 
+     ###########################################
+     odfi::dev::hw::h2dl::Connection +builder {
+
+        set parent [:parent]
+        #puts "Buld Connection from [$parent name get] to [[:child 0] name get]"
+
+        ## - Listen on destination if we are an input 
+        ## Outputs are meant to be written, not updated 
+        if {[$parent isClass odfi::dev::hw::h2dl::Input]} {
+
+             set signal [[:child 0]]
+
+            puts "Connecting [$parent name get] to a value of [$signal info class]"
+
+            ## Listen on the signal
+            ## If changed, set value on parent 
+            $signal sim:onValueUpdate "
+                puts \"Updated IO\"
+                ## Copy the value, very IMPORTANT because new Value must fully belong to the IO to be able to detect the Instance
+                $parent sim:setValue \[:getValue\] -now true
+            "
+
+            ## The parent may be an IO referencing the IO of the master Instance 
+            set masterIO [$parent shade odfi::dev::hw::h2dl::Input parent]
+            puts "--> IO has a reference to a parent IO which should belong to a master: $masterIO [[$parent getParentsRaw] size]"
+            if {$masterIO!=""} {
+                $parent sim:onValueUpdate {
+                    puts "IO updated, forwarding to master IO"
+                    <% return $masterIO %> sim:setValue [current object]
+                }
+            }
+            
+        }
+
+        #puts "in sim builder"
+     }
 
 
 }
