@@ -44,24 +44,67 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
 
             odfi::log::info "Register signal to dump [$signal name get], [$signal getPrimaryTreeDepth] , [$hierarchyParents size]"
 
-            set scopeString [$hierarchyParents > map { return [$it name get] } mkString "."]
 
-            odfi::log::info "Scope: $scopeString"
+            ## Check if Signal is part of a master
+            ## If it is, its value should be saved for the instances
+            #########
+            if {[[$signal parent] isClass odfi::dev::hw::h2dl::Master]} {
 
-            ## Find/Create scope representation 
-            set scopeLoc [lsearch -index 0 -exact ${:scopes} $scopeString]
+                odfi::log::info "Signal is part of a master, precreate some values for this instances then"
+                set master [$signal parent]
+
+                [$master shade odfi::dev::hw::h2dl::Instance children] foreach {
+
+                    
+
+                    ## Create Scope
+                    #set hierarchyParents [$it shade ::odfi::dev::hw::h2dl::Module getPrimaryParents]
+                    #set scopeString      [$hierarchyParents > map { return [$it name get] } mkString "."]
+
+                    
+
+                     set scope [:getOrCreateScope $it]
+
+                     ## Add signal to scope
+                     $scope addSignal $signal
+                }
+
+                
+
+
+            } else {
+                #set hierarchyParents [$signal shade ::odfi::dev::hw::h2dl::Module getPrimaryParents]
+                #set scopeString [$hierarchyParents > map { return [$it name get] } mkString "."]
+                
+                set instance   [$signal findFirstInstanceInHierarchy]
+                set scope [:getOrCreateScope $instance]
+
+                 ## Add signal to scope
+                 $scope addSignal $signal
+            }
+            
+
+           
+
+        }
+
+        :public method getOrCreateScope instance {
+
+            ## Create Scope
+            set hierarchyParents [$instance shade ::odfi::dev::hw::h2dl::Module getPrimaryParents]
+            set scopeString      [$hierarchyParents > map { return [$it name get] } += "[$instance name get]" mkString "."]
+
+            odfi::log::info "--> Create Scope for Instance $instance , scope: $scopeString"
+
+             set scopeLoc [lsearch -index 0 -exact ${:scopes} $scopeString]
             if {$scopeLoc==-1} {
-                set scope [VCDScope new -name $scopeString]
+                set scope [VCDScope new -name $scopeString -instance $instance]
                 :addChild $scope
                 lappend :scopes [list $scopeString $scope]
             } else {
                 set scope [lindex [lindex ${:scopes} $scopeLoc] 1]
             }
-            
-
-            ## Add signal to scope
-            $scope addSignal $signal
-
+            return $scope
         }
 
         ####################
@@ -236,20 +279,21 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
     nx::Class create VCDScope -superclasses odfi::flextree::FlexNode {
 
         :property -accessor public name:required
+        :property -accessor public instance:required
 
         ## FORMAT: SIGNAL ID SIGNAL ID
         :variable -accessor public signals 
 
         ## Code from 33 to 126 in decimal
-        :variable currentIdentifierCode
-        :variable currentBaseIdentifier ""
+        :object variable -accessor public currentIdentifierCode 33
+        :object variable -accessor public currentBaseIdentifier ""
 
         :method init args {
 
             ## Init current identifier
             set :signals {} 
-            set :currentIdentifierCode 33
-            set :currentBaseIdentifier ""
+            #set :currentIdentifierCode 33
+            #set :currentBaseIdentifier ""
             next 
         }
 
@@ -268,36 +312,68 @@ namespace eval  odfi::dev::hw::h2dl::sim::vcd {
 
         :public method addSignal signal {
 
-            ## 42 is " char, so we need to extra escape that
+            ## If Signal already exists, don't do anything
+            if {[lsearch ${:signals} $signal]!=-1} {
+                return 
+                
+            }
+
+            ## 34 is " char, so we need to extra escape that
             #if {${:currentIdentifierCode}>=60 && ${:currentIdentifierCode} <= 71 }
             #    set id [subst "${:currentBaseIdentifier}[expr ${:currentIdentifierCode}-60"]
-            if {${:currentIdentifierCode}==34} {
+            if {[VCDScope currentIdentifierCode get]==34 || [VCDScope currentIdentifierCode get]==91 || [VCDScope currentIdentifierCode get]==93 } {
                 #incr :currentIdentifierCode
-                set id [subst "${:currentBaseIdentifier}\\\\[format %c ${:currentIdentifierCode}]"]
+                set id [subst "[VCDScope currentBaseIdentifier get]\\\\[format %c [VCDScope currentIdentifierCode get]]"]
             } else {
-                set id [subst "${:currentBaseIdentifier}[format %c ${:currentIdentifierCode}]"]
+                set id [subst "[VCDScope currentBaseIdentifier get][format %c [VCDScope currentIdentifierCode get]]"]
             }
             
+            ## Check if Signal is part of a master
+            ## If it is, its value should be saved for the instances
+            #########
+            if {[[$signal parent] isClass odfi::dev::hw::h2dl::Master]} {
+
+            }
 
             lappend :signals $signal $id
-            :addChild $signal
+                :addChild $signal
+            
 
-            odfi::log::info "Added signal [$signal name get] with id $id"
+            
 
             ## Increment 
-            incr :currentIdentifierCode
+            #incr :currentIdentifierCode
+            VCDScope currentIdentifierCode set [expr [VCDScope currentIdentifierCode get] +1 ]
+
             #set :currentIdentifierCode [expr ${:currentIdentifierCode} + 01]
             #if {${:currentIdentifierCode}>176}
 
+            ## Get Instance container of child, to listen to the correct updates 
+            #set instance [$signal findFirstInstanceInHierarchy]
+
+            odfi::log::info "Added signal [$signal name get] with id $id and instance is ${:instance}"
+
             ## Monitor value change on signal 
-            $signal sim:onValueUpdate {
+            $signal sim:onValueUpdate -instance ${:instance} {
 
-                #puts "Value updated on: [:info class] -> [:getValue]"
+               
 
-                set signal [:parent]
-                set scope [[$signal parents get] find { odfi::common::isClass $it ::odfi::dev::hw::h2dl::sim::vcd::VCDScope} ]
-                set signalId [$scope getSignalIdentifier $signal]
-                [$scope parent] value $signal $signalId [current object]
+                set signal <% return $signal %>
+
+                # puts "Value updated on: $signal [:info class] -> [:getValue]"
+
+                set scopeOption [[$signal getParentsRaw] findOption { odfi::common::isClass $it ::odfi::dev::hw::h2dl::sim::vcd::VCDScope} ]
+                $scopeOption match {
+                    :none {
+                        puts "No scrope found"
+                    }
+
+                    :some scope {
+                        set signalId [$scope getSignalIdentifier $signal]
+                        [$scope parent] value $signal $signalId [current object]
+                    }
+                }
+                
             }
 
 

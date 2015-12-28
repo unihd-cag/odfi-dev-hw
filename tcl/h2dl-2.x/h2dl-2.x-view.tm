@@ -5,7 +5,7 @@ package require odfi::dev::hw::h2dl 2.0.0
 namespace eval odfi::dev::hw::h2dl::view {
 
 
-    odfi::language::Language2 define VIEW {
+    odfi::language::Language define VIEW {
 
         :view name type closure {
             +exportTo odfi::dev::hw::h2dl::Module

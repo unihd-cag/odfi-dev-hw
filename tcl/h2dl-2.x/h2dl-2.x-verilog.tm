@@ -1,280 +1,578 @@
 package provide odfi::dev::hw::h2dl::verilog 2.0.0
 package require odfi::dev::hw::h2dl 2.0.0
+package require odfi::dev::hw::h2dl::ast 2.0.0
 
 package require odfi::richstream 3.0.0
 
 
 namespace eval odfi::dev::hw::h2dl::verilog {
 
-    nx::Trait create VerilogTag {
+    nx::Trait create VerilogReduce {
+
+        :public method verilog:reduce {parent results} {
+           # puts "Inside common Reduce"
+            next
+        }
+
+        ## Get tabs for current hierarchy level
+        :public method verilog:reduceTabs {{incr 0}} {
+
+            return [join [lrepeat [expr [:getTreeDepth]+ $incr] "    "]]
+
+        }
+    }
+
+    proc defineReduce {target closure} {
+
+        #puts "Called Define REduce for $target"
+        $target public method verilog:reduce {parent results} $closure
+        $target mixins add ::odfi::dev::hw::h2dl::verilog::VerilogReduce
+        #$target domain-mixins add ::odfi::dev::hw::h2dl::verilog::VerilogReduce -prefix verilog
+        
+    }
+    ## Components
+    ######################
+    defineReduce ::odfi::dev::hw::h2dl::Module {
+
+        puts "Writing Out Module [:name get]"
+        puts "Results Content: [$results size]"
+
+        ## Prepare Stream To write out 
+        #####################################
+        set out [::new odfi::richstream::RichStream #auto]
+
+        ## Write Definition 
+        ############################
+        $out <<< "module [:getModelInstanceName] "
+
+        ### IOS
+        set ioString [$results @> filterRemove {[lindex $it 0] isClass odfi::dev::hw::h2dl::IO} @> map {
+
+
+
+
+            set ioRes [lindex $it 1]
+            #$out << [[lindex $it 0] verilog:reduceTabs]$regRes
+            return $ioRes
+        } mkString {"(\n" ",\n" "\n)" } ]
+        $out <<< $ioString
+
+        ## EOF IO 
+        $out <<  ";"
+
+        ## Content 
+        #######################
+
+        #### Parameters
+        $out << "[:verilog:reduceTabs 1]// Parametersrs"
+        $out << "[:verilog:reduceTabs 1]//---------------"
+        $results @> filterRemove {[lindex $it 0] isClass odfi::dev::hw::h2dl::NamedValue} @> mapSort {[lindex $it 0] name get} @> foreach {
+
+            set regRes [lindex $it 1]
+            $out << [[lindex $it 0] verilog:reduceTabs]$regRes
+        }
+        $out << ""
+        $out << ""
+
+        #### Signaling
+        $out << "[:verilog:reduceTabs 1]// Signaling"
+        $out << "[:verilog:reduceTabs 1]//---------------"
+
+        # Output results from registers 
+        #puts "Doing Registers with method chain $results"
+        $results @> filterRemove {[lindex $it 0] isClass odfi::dev::hw::h2dl::Signal} @> mapSort {[lindex $it 0] name get} @> foreach {
+
+            set regRes [lindex $it 1]
+            $out << [[lindex $it 0] verilog:reduceTabs]$regRes
+        }
+
+        $out << ""
+        $out << ""
+
+        #### Assignments
+        $out << "[:verilog:reduceTabs 1]// Assigments"
+        $out << "[:verilog:reduceTabs 1]//---------------"
+
+        $results @> filterRemove {[lindex $it 0] isClass odfi::dev::hw::h2dl::Assign} @> foreach {
+
+            set regRes [lindex $it 1]
+            $out << [[lindex $it 0] verilog:reduceTabs]$regRes
+        }
+
+
+        $out << ""
+        $out << ""
+
+        #### Instances
+        $out << "[:verilog:reduceTabs 1]// Instances"
+        $out << "[:verilog:reduceTabs 1]//---------------"
+
+        $out << ""
+        $out << ""
+
+        #### Logic
+        $out << "[:verilog:reduceTabs 1]// Logic"
+        $out << "[:verilog:reduceTabs 1]//---------------"
+
+        $results @> foreach {
+            puts "Found Logic elements"
+            $out << [[lindex $it 0] verilog:reduceTabs][lindex $it 1]
+        }
+
+        $out << ""
+        $out << ""
+        ## End Module 
+        ######################
+        $out <<  "endmodule"
+        ## Return result 
+        #####################
+        set str [$out toString]
+        odfi::common::deleteObject $out
+
+        #puts "Result of Module: \n\r$str"
+        return $str
 
     }
 
-    nx::Class create VerilogGen {
+    defineReduce ::odfi::dev::hw::h2dl::Register {
 
-        :variable outputFolder "."
+        #puts "Writing Out Register [:name get]"
+        #puts "Current parent is  [$parent info class]"
+        if {![$parent isClass ::odfi::dev::hw::h2dl::Structural]} {
+            return "[:name get]"
+        } else {
+            set size [expr [:width get] > 1 ? "{ \[[expr [:width get]-1]:0\]}" : "{}"]
+            return "reg $size [:name get];"
+        }
+        
 
-        :public method outputFolder f {
-            set :outputFolder [file normalize $f] 
-            file mkdir $f
+        #return "[:verilog:reduceTabs]register [:name get]"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::Wire {
+
+        #puts "Writing Out Register [:name get]"
+        #puts "Current parent is  [$parent info class]"
+        if {[$parent isClass ::odfi::dev::hw::h2dl::ast::ASTNode]} {
+            return "[:name get]"
+        } else {
+            set size [expr [:width get] > 1 ? "{ \[[expr [:width get]-1]:0\]}" : "{}"]
+            set subResults [$results @> map { return [[lindex $it 0] verilog:reduceTabs -1][lindex $it 1]} @> mkString {"\n" "\n" "\n" } ]
+            return "wire $size [:name get];$subResults"
+        }
+        
+
+        #return "[:verilog:reduceTabs]register [:name get]"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::IO {
+
+        if {[$parent isClass ::odfi::dev::hw::h2dl::ast::ASTNode]} {
+            return "[:name get]"
+        } else {
+
+            ## Description
+            set desc [:description get]
+            if {$desc!="" && $desc!="{}"} {
+                set  desc "    // [:description get]\n"
+            } else {
+                set desc ""
+            }
+            
+            ## Size 
+            set size ""
+            if {[:width get]>1} {
+                set size " \[[expr [:width get]-1]:0\]"
+            }
+
+            ## Definition
+            if {[:info class]=="::odfi::dev::hw::h2dl::Input"} {
+                return "$desc    input [:type get]$size [:name get]"
+            } elseif {[:info class]=="::odfi::dev::hw::h2dl::Output"} {
+                return "$desc    output [:type get]$size [:name get]"
+            } elseif {[:info class]=="::odfi::dev::hw::h2dl::Inout"} {
+                return "$desc    inout [:type get]$size [:name get]"
+            }
         }
 
-        :public method produce args {
+        
 
-            ## Tag All Verilog supported stuff
-            ###########
-            odfi::dev::hw::h2dl::Module mixins add VerilogTag
-            odfi::dev::hw::h2dl::Posedge mixins add VerilogTag
-            odfi::dev::hw::h2dl::Register mixins add VerilogTag
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::NamedValue {
+
+        return "localparam [:name get] = [:value get];"
+    }
+
+    ## Cases 
+    ###################
+
+    defineReduce ::odfi::dev::hw::h2dl::Case {
+
+        set out [::new odfi::richstream::RichStream #auto]
+
+        ## prepare signals
+        puts "Case signals: "
+        [:signals get] foreach {
+            puts "-> $it // [$it info class]"
+        }
+        set signalNames [[[:signals get] map {$it name get}] mkString ,]
+
+        ## Begin
+        ##############
+        $results @> filterRemove { [lindex $it 0] isClass ::odfi::dev::hw::h2dl::Comment} @> foreach {
+            $out << [[lindex $it 0] verilog:reduceTabs -1][lindex $it 1]
+        }
+        $out << "[:verilog:reduceTabs]casex ({$signalNames})"
+
+        ## Cases 
+        ##############
+        $results foreach {
+            $out << "[lindex $it 1]"
+        }
+
+
+        ## End 
+        ################
+        $out << "[:verilog:reduceTabs]endcase"
+        set str [$out toString]
+        odfi::common::deleteObject $out
+
+        return $str
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::On {
+        #puts "Results for on, number of children: [[:children] size] , results size: [$results size]"
+
+        #puts "On Results, [[$results at 0]""
+        return "[:verilog:reduceTabs][:value get] : begin
+
+[$results @> map { return [[lindex $it 0] verilog:reduceTabs][lindex $it 1]} @> mkString {\n}]
+
+[:verilog:reduceTabs]end"
+    }
+
+    ## Assignments
+    ##################
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTBlockingAssign {
+        return "[lindex [$results at 0] 1] = [lindex [$results at 1] 1];"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTNonBlockingAssign {
+
+        #puts "NB results $results [[lindex [$results at 1] 0] info class]"
+        #return "[$results @> map { return [lindex $it 1]} @> mkString {-}]"
+        return "[lindex [$results at 0] 1] <= [lindex [$results at 1] 1];"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::Assign {
+
+        #puts "NB results $results [[lindex $results 0] info class]"
+        #return "[$results @> map { return [lindex $it 1]} @> mkString {-}]"
+        #puts "******* ASSIGN [$results size]"
+        return "assign [[:parent] name get] = [$results @> map { return [lindex $it 1]} @> mkString ];"
+    }
+
+    ## AST NOdes 
+    ############################
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTCompare {
+        #puts "CONSTANT OUT"
+
+        set left [lindex [$results at 0] 1]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return "$left == $right"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTConstant {
+        #puts "CONSTANT OUT"
+        return "[:constant get]"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTRangeSelect {
+        #puts "CONSTANT OUT"
+        return "[[:firstChild] name get]\[[[:lastChild] constant get]\]"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTConcat {
+        #puts "CONSTANT OUT"
+        set left [lindex [$results at 0] 1]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        #puts "Concact out"
+
+        return "{$left , $right}"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTShiftLeft {
+
+         #puts "SL out"
+
+        set left [lindex [$results at 0] 1]
+        set leftNode [lindex [$results at 0] 0]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return " $left\[[expr [$leftNode width get] -2]:[expr $right -1]\]  "
+        
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTShiftRight {
+
+         #puts "SL out"
+
+        set left [lindex [$results at 0] 1]
+        set leftNode [lindex [$results at 0] 0]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return " $left\[[expr [$leftNode width get] -1]:[expr $right ]\]  "
+        
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTAdd {
+
+         #puts "SL out"
+
+        set left [lindex [$results at 0] 1]
+        set leftNode [lindex [$results at 0] 0]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return "$left + $right"
+        
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTIf {
+
+        set left [lindex [$results at 0] 1]
+        set leftNode [lindex [$results at 0] 0]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return "$left ? $right"
+
+    }
+    defineReduce ::odfi::dev::hw::h2dl::ast::ASTElse {
+        set left [lindex [$results at 0] 1]
+        set leftNode [lindex [$results at 0] 0]
+        set right [expr {[$results size]>1} ? {[lindex [$results at 1] 1]} : "{}"]
+
+        return "$left : $right"
+    }
+
+    ## Logic 
+    ###################
+    defineReduce ::odfi::dev::hw::h2dl::If {
+
+        set left [lindex [$results at 0] 1]
+        $results pop 
+        return "if ($left) begin
+[$results @> map { return [[lindex $it 0] verilog:reduceTabs][lindex $it 1]} @> mkString { \n \n \n}]
+[:verilog:reduceTabs]end"
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::Else {
+
+        return "else begin
+[$results @> map { return [[lindex $it 0] verilog:reduceTabs][lindex $it 1]} @> mkString { \n \n \n}]
+[:verilog:reduceTabs]end"
+    }
+
+    ## Sections and Blocks 
+    ###############################
+    defineReduce ::odfi::dev::hw::h2dl::Stage {
+
+        set out [::new odfi::richstream::RichStream #auto]
+
+        ## Setup 
+        ##############
+        $out << "[:verilog:reduceTabs]// Stage: [:name get]"
+        $out << "[:verilog:reduceTabs]//------------------------"
+
+        ## Sync block
+        #################
+
+        set edge [expr {[:isClass odfi::dev::hw::h2dl::Negedge]} ? "{negedge}" : "{posedge}" ]
+
+        ## Find reset 
+        set resetStr ""
+        set reset [:shade ::odfi::dev::hw::h2dl::Reset firstChild]
+        puts "********* RESET: $reset"
+        if {$reset!=""} {
+            set r [$reset signal get]
+            if {[string match "*_n" [$r name get]]} {
+                set resetStr " or negedge [$r name get]"
+            } else {
+                set resetStr " or posedge [$r name get]"
+            }
+        }
+        #set reset [:shade odfi::dev::hw::h2dl::Reset firstChild]
+        #set resetEdge "" 
+
+        $out << "[:verilog:reduceTabs]always @($edge [[:signal get] name get]$resetStr) begin"
+
+        ##### Reset 
+
+        ##### Body
+        $out << [$results @> map { return [[lindex $it 0] verilog:reduceTabs][lindex $it 1]} @> mkString { \n \n \n}]
+
+
+        ## Return 
+        #############
+        $out << "[:verilog:reduceTabs]end"
+
+        set str [$out toString]
+        odfi::common::deleteObject $out
+
+        return $str
+    }
+
+    ## FSM 
+    #################
+    defineReduce ::odfi::dev::hw::h2dl::fsm::Goto {
+        if {[$parent isClass ::odfi::dev::hw::h2dl::ast::ASTNode]} {
+            return [:to get]
+        } 
+       
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::fsm::State {
+        #if {[$parent isClass ::odfi::dev::hw::h2dl::ast::ASTNode]} {
+            return [:name get]
+        #} 
+       
+    }
+
+    defineReduce ::odfi::dev::hw::h2dl::fsm::Fsm {
+
+        ## Create Values
+        ## Gather All States 
+        #############
+        #set states [odfi::flist::MutableList new]
+        #:shade ::odfi::dev::hw::h2dl::fsm::State walkDepthFirstPostorder {
+        #    $states += $node
+        #    return true
+        #}
+        #set vectorSize [expr int(ceil(log([$states size])/log(2)))]
+       
+        ## Produce String 
+        #######################
+        #set i -1
+        #$states @> map {
+        #    incr i
+        #    return "localparam [$it name get] = ${vectorSize}'d$i;\n"
+        #} @> mkString
+
+    }
+
+    ## Others 
+    #####################
+    defineReduce ::odfi::dev::hw::h2dl::Comment {
+        #puts "CONSTANT OUT"
+        return "//[:value get]"
+    }
+
+    ## Generic Verilog Gen 
+    #################################
+    nx::Class create VerilogGen {
+
+       
+
+        :public method produce {{outputFolder "."}} {
+
+
             
-            odfi::dev::hw::h2dl::Match mixins add VerilogTag
 
             ## Start Producing
             #######################
-            odfi::log::info "Start Producing verilog to ${:outputFolder} on object [:info class] ->  ${:name}"
+            odfi::log::info "Start Producing verilog to ${outputFolder} on object [:info class] ->  ${:name}"
 
             ## List of created files 
             set filesList {}
 
-            set res [:shade odfi::dev::hw::h2dl::verilog::VerilogTag reduce2 {
+            ## Prepare 
+            ###################
 
-                if {[::odfi::common::isClass $node ::odfi::dev::hw::h2dl::Module]} {
+            ## Module Prepares 
+            if {[:isClass ::odfi::dev::hw::h2dl::Module]} {
 
-                    odfi::log::info "Producing verilog for Module [$node info class], with Model Name [$node getModelInstanceName]"  
+                set module [current object]
 
-                    ## Write Out Module Definition
-                    ####################
-
-                    ## Prepare file and stream 
-                    set targetFile ${:outputFolder}/[$node getModelInstanceName].v
-                    lappend filesList $targetFile
-
-                    set out [::new odfi::richstream::RichStream #auto]
-                    $out streamToFile $targetFile
-
-                    set instanceOut [::new odfi::richstream::RichStream #auto]
-
-
-                    #### Begin Module 
-                    $out << "module [$node getModelInstanceName] ("
-
-                    $instanceOut << "[$node getModelInstanceName] [$node name get] ("
-
-                    #### IO 
-                    set ios {}
-                    set instanceConnections {}
-                    set conn ""
-                    [[$node noShade children] filter { return [odfi::common::isClass $it ::odfi::dev::hw::h2dl::IO] }] foreach {
-                        child => 
-
-                            
-                            ## Description
-                            set desc [$child description get]
-                            if {$desc!="" && $desc!="{}"} {
-                                set  desc "    // [$child description get]\n"
-                            } else {
-                                set desc ""
-                            }
- 
-                            ## Definition
-                            if {[$child info class]=="::odfi::dev::hw::h2dl::Input"} {
-                                lappend ios "$desc    input [$child type get] [$child name get]"
-                            } elseif {[$child info class]=="::odfi::dev::hw::h2dl::Output"} {
-                                lappend ios "$desc    output [$child type get] [$child name get]"
-                            }
-
-                            ## Find Connection 
-                            ## Connection can be a child of this signal, or it can be a parent
-                            set conn ""
-                            set conn [[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0]
-                            if {$conn==""} {
-                                set conn [$child shade ::odfi::dev::hw::h2dl::Connection parent]
-                            }
-                            #puts "Processing IO [$child name get], child connection: [[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0], parents: [[$child parents] size],[$child shade ::odfi::dev::hw::h2dl::Connection parent]"
-                            #set conn ::select -not {
-                            #    {[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0}
-                            #    {[$child shade ::odfi::dev::hw::h2dl::Connection children] at 0}
-                            #}
-                            if {$conn==""} {
-                                lappend  instanceConnections ".[$child name get]()"
-                            } else {
-                                lappend  instanceConnections ".[$child name get]([$conn name get])"
-                            }
-                            #if {[odfi::common::isClass $child ::odfi::dev::hw::h2dl::IO]} {
-                                ## Instantiation
-                                #puts "In connection for [$child name get]([$child info object slots]) "
-                                
-                            #}
-                            
-                    }
-                    $out << "[join $ios ,\n]);"
-                    $out << ""
-                    $out << ""
-
-                    $instanceOut << "[join $instanceConnections ,\n]"
-                    
-
-                    #### End Module
-                    #puts "Args are: $args"
-                    $out << [join $args]
-                    #foreach a $args {
-                    #    $out <<  $a
-                    #    #::puts "Outputing $a"
-                    #}
-                    
-
-                    $out << "//--"
-                    $out << "endmodule;"
-
-                    $instanceOut << ");"
-
-                    #### Write to file
-                    #$out toFile $targetFile
-
-                    ## Return Instantiation Model 
-                    #####################
-       
-                    # Return 
-                    #return "-"
-                    return [$instanceOut toString]
-
-
+                ## Find All the NamedValue for local params, and put them in the top module 
+                :shade odfi::dev::hw::h2dl::NamedValue walkDepthFirstPreorder {
+                    {namedValue parent} => 
+                        $namedValue detachFrom $parent 
+                        $namedValue setFirstParent $module 
+                
+                    return true
                 }
 
+                ## Find All Assigns on IOS and add them to top module 
+                :shade odfi::dev::hw::h2dl::IO eachChild {
+
+                    $it shade odfi::dev::hw::h2dl::Assign eachChild {
+                        $module addChild $it
+                    }
+
+            
+                }
+
+
+            }
+
+            set res [:shade ::odfi::dev::hw::h2dl::verilog::VerilogReduce reducePlus {
+
+                
+
+
+                ## Produce Results 
+                #########################
+                ::set __r [$node verilog:reduce $parent $results]
+
+                ## Write to file if Module 
+                if {[$node isClass odfi::dev::hw::h2dl::Module]} {
+                    puts "Module -> To File ${outputFolder}/[$node name get].v" 
+                    puts "Module Res: $__r"
+                    odfi::files::writeToFile ${outputFolder}/[$node name get].v $__r 
+                }
+                return $__r
                
 
-            }]
+            } ]
 
             ## Write F File out 
             ##########################
-            odfi::files::writeToFile ${:outputFolder}/netlist.f [join $filesList \n]
+            #odfi::files::writeToFile ${outputFolder}/netlist.f [join $filesList \n]
 
 
-            return $res
+            return ""
 
-            
-            
-            #odfi::dev::hw::h2dl::Input mixins add VerilogTag
-            #odfi::dev::hw::h2dl::Output mixins add VerilogTag
-            puts "In Verilog Producer on [:info class] ${:name}"
+            ## Perform necessary transformations
+            ############################
 
-            set res [:shade odfi::dev::hw::h2dl::verilog::VerilogTag reduce2 {
+            :walkDepthFirstPreorder {
+                if {[$node isClass odfi::dev::hw::h2dl::Inout] && [$node shade odfi::dev::hw::h2dl::Highz firstChild]!=""} {
 
-                puts "in reduce function for [$node info class] "
-
-                ## Produce tabbing using tree depth
-                #set tabs [string map {- "\t"} [join [lrepeat [$node getTreeDepth] "\t"] "" ]]
-                #set tabs [join [lrepeat [$node getTreeDepth] \t] "" ]
-                set tabs [join [lrepeat [$node getTreeDepth] "    " ] "" ]
-                #::puts "TABS: sepby${tabs}tab"
-                
-                switch -exact -- [$node info class] {
-
-                    ::odfi::dev::hw::h2dl::Module {
-                        
-                        puts "Reducing node: [$node info class] -> ${:name}"
-                        puts "Results so far: $args"
-
-                        # Create Stream 
-                        set out [::new odfi::richstream::RichStream #auto]
-
-                        #### Begin Module 
-                        $out << "module ${:name} ("
-
-                        #### IO 
-                        set ios {}
-                        [$node noShade children] foreach {
-                            child => 
-
-                                if {[$child info class]=="::odfi::dev::hw::h2dl::Input"} {
-                                    lappend ios "    input wire [$child name get]"
-                                } elseif {[$child info class]=="::odfi::dev::hw::h2dl::Output"} {
-                                    lappend ios "    output wire [$child name get]"
-                                }
-                        }
-                        $out << "[join $ios ,\n]);"
-                        $out << ""
-                        $out << ""
-
-                        #### End Module
-                        $out <<  $args
-                        $out << "endmodule;"
-
-                        # Return 
-                        return [list [$out toString]]
-
+                    puts "VErilog found an InOut to resolve"
+                    set module [$node parent]
+                    set highz [$node shade odfi::dev::hw::h2dl::Highz firstChild]
+                    ## Add A register to the output
+                    $module register [$node name get]_out {
+                        :width set [$node width get]
                     }
-                    ::odfi::dev::hw::h2dl::Posedge {
 
-                        ## Create Stream 
-                        set out [::new odfi::richstream::RichStream #auto]
-                        puts "Reducing posedge [$node info class] -> [$node getTreeDepth], tabs '${tabs}'"
-                        $out << "${tabs}always @(posedge [[$node signal get] name get])"
-                        $out << "${tabs}begin"
-                        $out << $args
-                        $out << "${tabs}end"
+                    ## Find Usage of Inout Signal in assignments and replace with new register
 
-                        ## Return 
-                        return [$out toString]
-
-                    }
-                    ::odfi::dev::hw::h2dl::Input {
-
-                        puts "Reducing input [$node info class]"
-                        return "input wire [$node cget -name]"
-                    }
-                    ::odfi::dev::hw::h2dl::Register {
-                        return "register [$node cget -name];"
-                    }
-                    ::odfi::dev::hw::h2dl::Output {
-
-                    }
-                    ::odfi::dev::hw::h2dl::Match {
-
-                        ## Create Stream 
-                        puts "Reducing Match [$node info class]"
-                        set out [::new odfi::richstream::RichStream #auto]
-
-                        $out << "${tabs}// Reduced from Match"
-                        [$node noShade children] foreach {
-                            child => 
-
-                                if {[$child info class]=="::odfi::dev::hw::h2dl::If"} {
-
-                                    $out << "${tabs}if ([[$node signal get] name get] == [[$child] value get]) begin"
-                                    $out << "${tabs}end"
-
-                                } elseif {[$child info class]=="::odfi::dev::hw::h2dl::Else"} {
-
-                                    $out << "${tabs}else begin"
-                                    $out << "${tabs}end"
-
-                                }
-                        }
-                        #puts "Reducing posedge [$node info class]"
-                        #$out << "if () begin"
-                    
-                        #$out << "end"
-
-                        ## Return 
-                        return [$out toString]
-
-                    }
-                    default {}
+                    ## Set an Assign expression
+                    $node = [$highz expr get] ? Z : [set [$node name get]_out]
                 }
+            }
 
-                
-            }]
-
-            #puts "After reduce is $res of size [llength $res]"
-            #return [lindex $res 0]
-            #return [join $res \n]
-            return $res
+            
 
         }
 
     }
-
+    ::odfi::dev::hw::h2dl::Module domain-mixins add ::odfi::dev::hw::h2dl::verilog::VerilogGen -prefix verilog
 
 
 }
+

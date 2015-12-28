@@ -5,7 +5,7 @@ package require odfi::richstream 3.0.0
 
 namespace eval odfi::dev::hw::h2dl::verification {
 
-    odfi::language::Language2 define TESTBENCH {
+    odfi::language::Language define TESTBENCH {
         
         :testbench name {
             +type odfi::dev::hw::h2dl::Module

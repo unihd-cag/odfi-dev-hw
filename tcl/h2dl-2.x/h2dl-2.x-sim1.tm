@@ -441,7 +441,7 @@ namespace eval  odfi::dev::hw::h2dl::sim1 {
     #################################
 
 
-    odfi::language::Language2 define SIM {
+    odfi::language::Language define SIM {
 
         ## IncTime is a list of times
         ## The next time, will always be the current one on the list
