@@ -1,4 +1,3 @@
-package provide odfi::implementation::edid::rtl 1.0.0
 package provide odfi::dev::hw::rtl 1.0.0
 package require odfi::common
 package require odfi::list
@@ -65,6 +64,9 @@ namespace eval odfi::dev::hw::rtl {
         ## \brief Size, calculated or set manually
         public variable size 1
 
+        public variable direction "input"
+        public variable type "wire"
+
         constructor pinName {
             set name $pinName
         }
@@ -100,6 +102,30 @@ namespace eval odfi::dev::hw::rtl {
             return $size
         }
 
+        public method setType t {
+            set type $t 
+        }
+        public method getType args {
+            return $type
+        }
+
+        public method setDirection t {
+            set direction $t 
+        }
+        public method isInput args {
+            if {$direction=="input"} {
+                return true 
+            } else {
+                return false
+            }
+        }
+        public method isInputOutput args {
+            if {$direction=="inout"} {
+                return true 
+            } else {
+                return false
+            }
+        }
 
 
     }
@@ -174,7 +200,7 @@ namespace eval odfi::dev::hw::rtl {
         set doxygenLine {^\s*(///\s*.*)}
 
         #set ioRegexp {\s*(?:input|output|inout)\s+wire\s+([\w]+)\s*,?\s*(//.*)?}
-        set ioRegexp {\s*(?:input|output|inout)\s+(?:wire|reg)\s+(?:\[.+:.+\]\s+)?([\w]+)\s*,?\s*(//.*)?}
+        set ioRegexp {\s*(input|output|inout)\s+(wire|reg)\s+(\[.+:.+\]\s+)?([\w]+)\s*,?\s*(//.*)?}
 
 
 
@@ -202,7 +228,7 @@ namespace eval odfi::dev::hw::rtl {
 
                 set startIndex [lindex $matched 1]
 
-            } elseif {[regexp  -indices -- $ioRegexp $line matched name extra]==1} {
+            } elseif {[regexp  -indices -- $ioRegexp $line matched direction type sizeString name extra]==1} {
 
                 set matchedString [string range $line [lindex $matched 0] [lindex $matched 1]]
 
@@ -214,12 +240,27 @@ namespace eval odfi::dev::hw::rtl {
                 #######################
                 set name [string range $line [lindex $name 0] [lindex $name 1]]
                 set extraMatch [string range $line [lindex $extra 0] [lindex $extra 1]]
+                set direction [string range $line [lindex $direction 0] [lindex $direction 1]]
+                set type [string range $line [lindex $type 0] [lindex $type 1]]
+                set sizeString [string trim [string range $line [lindex $sizeString 0] [lindex $sizeString 1]]]
+
 
                 #puts "Creating Pin with name $name"
 
                 #### Create Array for pin and save
                 ############################
                 set pin [::new [namespace current]::IOPin "#auto" $name]
+                $pin setDirection $direction 
+                $pin setType $type
+
+                if {$sizeString!=""} {
+                    #puts "Size strign: $sizeString"
+                    regexp {\[(.+):(.+)\]} $sizeString -> msb lsb
+                    if {[string is integer $msb] && [string is integer $lsb] } {
+                        $pin setSize [expr $msb-$lsb+1]
+                    }
+                }
+
                 if {$currentGroup!=""} {
 
                     #puts "Assigning Group: $currentGroup"
